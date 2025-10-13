@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prototipe Bel Sekolah (Fix Audio Tumpuk)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
+        import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnR2U7iBj1R7CFbAJzVYxzASxXcAztqp8",
+            authDomain: "bel-sekolah-5ab64.firebaseapp.com",
+            databaseURL: "https://bel-sekolah-5ab64-default-rtdb.firebaseio.com",
+            projectId: "bel-sekolah-5ab64",
+            storageBucket: "bel-sekolah-5ab64.appspot.com",
+            messagingSenderId: "100622592851",
+            appId: "1:100622592851:web:0b23f7d00ae0a44bf94fa6"
+        };
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const db = getDatabase(app);
+
+            window.startApp(auth, db, {
+                signInWithEmailAndPassword,
+                ref,
+                set,
+                onValue,
+                get
+            });
+        } catch (e) {
+            console.error("Error initializing Firebase:", e);
+            const spinner = document.getElementById('loading-spinner-text');
+            if(spinner) spinner.textContent = "Gagal menginisialisasi Firebase.";
+        }
+    </script>
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
+        .main-header { background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%); border-radius: 0.75rem; color: white; }
+        .btn { background-color: #f1f5f9; color: #475569; border-radius: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; transition: all 0.2s ease-in-out; border: 1px solid #cbd5e1; }
+        .btn:hover:not(:disabled) { background-color: #e2e8f0; transform: translateY(-2px); box-shadow: 0 2px 8px rgb(0 0 0 / 0.1); }
+        .btn-primary { background-color: #4f46e5; color: white; border-color: #4f46e5; }
+        .btn-primary:hover:not(:disabled) { background-color: #4338ca; }
+        .btn:disabled { background-color: #f8fafc; color: #cbd5e1; cursor: not-allowed; opacity: 0.6; }
+        .btn-day.active { background-color: #2563eb; color: white; border-color: #1d4ed8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+        .btn-edit:hover { background-color: #fef9c3; border-color: #facc15; }
+        .btn-delete:hover { background-color: #fee2e2; border-color: #f87171; }
+        .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 41, 59, 0.7); backdrop-filter: blur(4px); z-index: 40; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+        .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+        .hidden { display: none; }
+        .tab-btn.active { border-bottom: 3px solid #4f46e5; color: #4f46e5; font-weight: 700; }
+        #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 100; display: flex; flex-direction: column; gap: 0.75rem; }
+        .toast { display: flex; align-items: center; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); color: white; font-weight: 600; min-width: 300px; animation: toast-in 0.5s ease; }
+        .toast.hiding { animation: toast-out 0.5s ease forwards; }
+        .toast-success { background-color: #22c55e; } .toast-error { background-color: #ef4444; } .toast-info { background-color: #3b82f6; } .toast-warning { background-color: #f59e0b; }
+        @keyframes toast-in { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toast-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
+        .past-bell { background-color: #fef9c3 !important; border: 1px solid #facc15; opacity: 0.7; }
+        .bell-ringing { animation: flash-bell 1.5s ease-in-out; }
+        @keyframes flash-bell { 0%, 100% { background-color: #f9fafb; border-color: #e5e7eb; transform: scale(1); } 50% { background-color: #c7d2fe; border-color: #4f46e5; transform: scale(1.03); } }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div id="toast-container"></div>
+
+    <div id="loading-spinner" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-100 z-50">
+        <div class="spinner"></div>
+        <p id="loading-spinner-text" class="mt-4 text-slate-600 font-semibold">Melakukan autentikasi awal...</p>
+    </div>
+
+    <div id="login-page" class="fixed inset-0 flex items-center justify-center bg-slate-100 z-40 hidden">
+        <div class="card w-full max-w-sm p-8 shadow-xl">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-slate-800">Selamat Datang</h2>
+                <p class="text-slate-500">Silakan masuk untuk melanjutkan</p>
+            </div>
+            <form id="login-form">
+                <div class="space-y-4">
+                    <div>
+                        <label for="username" class="block text-sm font-medium text-slate-600">Username</label>
+                        <input type="text" id="username" class="mt-1 w-full bg-slate-50 border rounded-md p-3 focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                    </div>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-slate-600">Password</label>
+                        <div class="relative">
+                            <input type="password" id="password" class="mt-1 w-full bg-slate-50 border rounded-md p-3 pr-10 focus:ring-2 focus:ring-indigo-500 focus:outline-none" required>
+                            <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
+                                <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                <svg id="eye-slash-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 1.274-4.057 5.064 7-9.542-7 .847 0 1.673.124 2.468.352M10.582 10.582a3 3 0 11-4.243 4.243M16.95 16.95l-1.414-1.414M1.05 1.05l21.9 21.9" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p id="login-error" class="text-red-500 text-sm mt-4 text-center hidden">Username atau password salah.</p>
+                <button type="submit" class="w-full btn btn-primary mt-6 py-3 text-lg">Masuk</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="main-app" class="hidden">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <header class="main-header p-4 grid grid-cols-1 md:grid-cols-3 gap-6 shadow-lg">
+                <div class="flex items-center space-x-4">
+                    <div class="bg-white/20 p-2 rounded-full backdrop-blur-sm"><svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path></svg></div>
+                    <div><h1 class="text-xl font-bold">SMPN 2 PAJANGAN</h1><p class="text-sm text-indigo-100">(Prototipe Web)</p></div>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center"><div id="time" class="text-4xl lg:text-5xl font-extrabold tracking-wider" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.2);">00:00:00</div><div id="date" class="text-lg text-indigo-100">Memuat tanggal...</div></div>
+                <div class="flex flex-col items-center justify-center text-center"><p class="text-indigo-100">Program Aktif</p>
+                    <div id="activeProgram" class="text-2xl font-bold mb-2 leading-tight"><span id="activeDayDisplay">-</span><span id="activeTemplateDisplay" class="block text-base font-medium text-indigo-200"></span></div>
+                    <button id="settingBtn" class="btn w-full md:w-auto px-6 py-2 flex items-center justify-center space-x-2 shadow-md" disabled><span>Setting</span></button>
+                </div>
+            </header>
+            <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="card p-4"><h3 class="font-bold text-lg mb-2 text-center text-slate-700 border-b pb-2">PILIH JADWAL UTAMA</h3>
+                        <label for="templateSelect" class="text-sm font-medium text-slate-600">Pilih Template Jadwal:</label>
+                        <select id="templateSelect" class="mt-1 w-full bg-white border rounded-md p-2 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" disabled></select>
+                        <p class="text-xs text-slate-500 mt-3 mb-2">Pilih hari di bawah untuk mengaktifkan jadwalnya sementara:</p>
+                        <div id="jadwalUtamaContainer" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3 mt-4"></div>
+                    </div>
+                    <div class="card p-4"><h3 class="font-bold text-lg mb-4 text-center text-slate-700 border-b pb-2">JADWAL KHUSUS</h3><div id="jadwalKhususContainer" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3"></div></div>
+                </div>
+                <div class="lg:col-span-2 card p-4"><h3 class="font-bold text-lg mb-4 text-center text-slate-700 border-b pb-2">SOUND MANUAL</h3><div id="manualSoundGrid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3"></div></div>
+                <div class="lg:col-span-1 card p-4 flex flex-col"><h3 class="font-bold text-lg mb-4 text-center text-slate-700 border-b pb-2 flex-shrink-0">JADWAL AKTIF</h3><div id="activeScheduleContainer" class="space-y-2 overflow-y-auto pr-2"></div></div>
+            </main>
+        </div>
+
+        <div id="settingsModal" class="modal-backdrop"><div class="card w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl"><header class="p-4 border-b flex justify-between items-center"><h3 class="text-xl font-bold">Pengaturan Program Bel</h3><div class="flex-wrap justify-center flex space-x-1 sm:space-x-2 md:space-x-4"><button class="tab-btn p-2 font-semibold active" data-tab="hari">Atur Hari Khusus</button><button class="tab-btn p-2 font-semibold" data-tab="jam">Atur Jam</button><button class="tab-btn p-2 font-semibold" data-tab="bel">Atur Bel</button><button class="tab-btn p-2 font-semibold" data-tab="jadwal">Atur Jadwal</button></div><button id="closeSettings" class="p-2 rounded-full hover:bg-slate-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button></header><main class="p-6 flex-grow overflow-y-auto bg-slate-50 rounded-b-lg"><div id="tab-content-hari" class="tab-content"><h4 class="text-lg font-semibold mb-2">Pengaturan Jadwal Khusus</h4><p class="text-slate-500 mb-4">Tambah, edit, dan hapus nama jadwal khusus. Jadwal ini bisa diaktifkan sementara dari halaman utama.</p><form id="addHariForm" class="flex items-center gap-4 mb-6 bg-slate-100 p-4 rounded-lg border"><label for="hariInput" class="font-semibold text-slate-600">Nama Jadwal:</label><input type="text" id="hariInput" class="bg-white border rounded-md p-2 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none flex-grow" required><button type="submit" class="btn bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-2 flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span>Tambah</span></button></form><div id="hariListContainer" class="space-y-2"></div></div><div id="tab-content-jam" class="tab-content hidden"><h4 class="text-lg font-semibold mb-2">Pengaturan Master Jam</h4><p class="text-slate-500 mb-4">Tambah, edit, dan hapus daftar waktu untuk jadwal bel.</p><form id="addJamForm" class="flex items-center gap-4 mb-6 bg-slate-100 p-4 rounded-lg border"><label for="jamInput" class="font-semibold text-slate-600">Jam Baru:</label><input type="time" id="jamInput" class="bg-white border rounded-md p-2 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required><button type="submit" class="btn bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-2 flex-grow sm:flex-grow-0 flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg><span>Tambah</span></button></form><div id="jamListContainer" class="space-y-2"></div></div><div id="tab-content-bel" class="tab-content hidden"><h4 class="text-lg font-semibold mb-2">Pengaturan Master Bel</h4><div class="bg-blue-50 border border-blue-200 text-blue-800 p-3 rounded-lg text-sm mb-4 flex items-start gap-3"><svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><p>Atur nama dan file suara untuk setiap tombol bel manual. Untuk prototipe web ini, daftar file suara hanya simulasi.</p></div><div id="belListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></div><div id="tab-content-jadwal" class="tab-content hidden"><h4 class="text-lg font-semibold mb-2">Pengaturan Jadwal Otomatis</h4><p class="text-slate-500 mb-4">Pilih template atau kategori, lalu atur bel untuk setiap jamnya.</p><div class="flex flex-col sm:flex-row items-center gap-4 mb-6 bg-slate-100 p-4 rounded-lg border"><div class="w-full sm:w-1/2"><label for="jadwalTemplateSelect" class="font-semibold text-slate-600">Pilih Template/Kategori:</label><select id="jadwalTemplateSelect" class="w-full mt-1 bg-white border rounded-md p-2 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select></div><div class="w-full sm:w-1/2"><label for="jadwalDaySelect" class="font-semibold text-slate-600">Pilih Hari:</label><select id="jadwalDaySelect" class="w-full mt-1 bg-white border rounded-md p-2 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select></div></div><div class="overflow-x-auto"><table id="jadwalTable" class="w-full min-w-[500px]"><thead><tr class="border-b bg-slate-100"><th class="p-3 text-left font-bold text-slate-600 w-1/3">Jam</th><th class="p-3 text-left font-bold text-slate-600">Bel yang Dibunyikan</th></tr></thead><tbody class="divide-y divide-slate-200"></tbody></table></div></div></main></div></div>
+        <div id="editHariModal" class="modal-backdrop"><div class="card w-full max-w-sm p-6 text-center shadow-2xl"><h3 class="text-xl font-bold mb-4">Edit Jadwal Khusus</h3><form id="editHariForm"><input type="hidden" id="editHariIndex"><input type="text" id="editHariInput" class="w-full bg-slate-100 border rounded-md p-3 text-center text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="w-full text-white font-semibold bg-blue-600 hover:bg-blue-700 rounded-md p-3">Simpan</button></div></form></div></div>
+        <div id="deleteHariModal" class="modal-backdrop"><div class="card w-full max-w-sm p-6 text-center shadow-2xl"><h3 class="text-xl font-bold mb-4">Konfirmasi Hapus</h3><p id="deleteHariText" class="text-slate-600 mb-6">Apakah Anda yakin?</p><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="button" id="confirmDeleteHariBtn" class="btn bg-red-600 text-white hover:bg-red-700">Hapus</button></div></div></div>
+        <div id="editJamModal" class="modal-backdrop"><div class="card w-full max-w-sm p-6 text-center shadow-2xl"><h3 class="text-xl font-bold mb-4">Edit Jam</h3><form id="editJamForm"><input type="hidden" id="editJamIndex"><input type="time" id="editJamInput" class="w-full bg-slate-100 border rounded-md p-3 text-center text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="w-full text-white font-semibold bg-blue-600 hover:bg-blue-700 rounded-md p-3">Simpan</button></div></form></div></div>
+        <div id="deleteJamModal" class="modal-backdrop"><div class="card w-full max-w-sm p-6 text-center shadow-2xl"><h3 class="text-xl font-bold mb-4">Konfirmasi Hapus</h3><p id="deleteJamText" class="text-slate-600 mb-6">Apakah Anda yakin?</p><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="button" id="confirmDeleteJamBtn" class="btn bg-red-600 text-white hover:bg-red-700">Hapus</button></div></div></div>
+        <div id="editBelModal" class="modal-backdrop"><div class="card w-full max-w-sm p-6 shadow-2xl"><h3 class="text-xl font-bold mb-6 text-center">Edit Bel <span id="editBelTitleId" class="font-extrabold text-indigo-600"></span></h3><form id="editBelForm" class="space-y-4"><input type="hidden" id="editBelIndex"><label class="block"><span class="font-semibold text-slate-700">Nama Bel</span><input type="text" id="editBelNamaInput" class="mt-1 block w-full bg-slate-100 border rounded-md p-3 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none" required></label><label class="block"><span class="font-semibold text-slate-700">File Suara</span><div class="flex items-center gap-2 mt-1"><select id="editBelFileSelect" class="block w-full bg-slate-100 border rounded-md p-3 text-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select><button type="button" id="testSoundBtn" class="btn p-3" title="Test Suara"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg></button></div></label><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="w-full text-white font-semibold bg-blue-600 hover:bg-blue-700 rounded-md p-3">Simpan</button></div></form></div></div>
+    </div>
+
+    <script>
+    window.startApp = (auth, db, firebaseFunctions) => {
+        const { signInWithEmailAndPassword, ref, set, onValue, get } = firebaseFunctions;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const loginPage = document.getElementById('login-page');
+            const mainApp = document.getElementById('main-app');
+            const loginForm = document.getElementById('login-form');
+            const loginError = document.getElementById('login-error');
+            const passwordInput = document.getElementById('password');
+            const togglePassword = document.getElementById('togglePassword');
+            const eyeIcon = document.getElementById('eye-icon');
+            const eyeSlashIcon = document.getElementById('eye-slash-icon');
+            
+            let masterJam = [], masterBel = [], jadwalKhusus = [], masterJadwal = {};
+            let savedTemplate = 'HARI NORMAL';
+            let temporaryOverride = { date: null, name: null };
+            let manualDayOverride = null;
+            let nextBellTimeout = null;
+            let isDataLoaded = false;
+            let activeSound = { toast: null, ringingItem: null };
+            
+            const templates = ['HARI NORMAL', 'BULAN PUASA', 'UJIAN', 'LAINNYA'];
+            const jadwalUtama = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            let availableSounds = [];
+            
+            const MODALS = { settings: 'settingsModal', editHari: 'editHariModal', deleteHari: 'deleteHariModal', editJam: 'editJamModal', deleteJam: 'deleteJamModal', editBel: 'editBelModal' };
+            const hardcodedEmail = "speropa@gmail.com";
+            const hardcodedPassword = "Pajangan201184*";
+
+            signInWithEmailAndPassword(auth, hardcodedEmail, hardcodedPassword)
+                .then((userCredential) => {
+                    console.log("Autentikasi latar belakang berhasil:", userCredential.user.email);
+                    loadingSpinner.classList.add('hidden');
+                    loginPage.classList.remove('hidden');
+                })
+                .catch((error) => {
+                    console.error("Autentikasi latar belakang GAGAL:", error);
+                    const spinnerText = document.getElementById('loading-spinner-text');
+                    spinnerText.innerHTML = "Gagal melakukan autentikasi latar belakang.<br>Error: " + error.code;
+                });
+
+            loginForm.addEventListener('submit', handleUserLoginAttempt);
+
+            togglePassword.addEventListener('click', function() {
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                eyeIcon.classList.toggle('hidden');
+                eyeSlashIcon.classList.toggle('hidden');
+            });
+
+            async function handleUserLoginAttempt(e) {
+                e.preventDefault();
+                loginError.classList.add('hidden');
+                const userInput = document.getElementById('username').value;
+                const passInput = document.getElementById('password').value;
+                const loginRef = ref(db, 'Login');
+                try {
+                    const snapshot = await get(loginRef);
+                    if (snapshot.exists()) {
+                        const loginData = snapshot.val();
+                        if (loginData.user === userInput && loginData.password === passInput) {
+                            startMainApplication();
+                        } else {
+                            loginError.classList.remove('hidden');
+                        }
+                    } else {
+                        loginError.textContent = "Data login tidak ditemukan di database.";
+                        loginError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error("Error fetching login data:", error);
+                    loginError.textContent = "Gagal mengambil data dari server.";
+                    loginError.classList.remove('hidden');
+                }
+            }
+            
+            function startMainApplication() {
+                loginPage.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                listenToConfigChanges();
+            }
+
+            function listenToConfigChanges() {
+                const configRef = ref(db, 'schoolBellConfig');
+                onValue(configRef, snapshot => {
+                    const data = snapshot.val();
+                    applyConfig(data || {});
+
+                    const settingsModal = document.getElementById('settingsModal');
+                    if (!settingsModal.classList.contains('visible')) {
+                        if (!isDataLoaded) {
+                            isDataLoaded = true;
+                            document.getElementById('settingBtn').disabled = false;
+                            document.getElementById('templateSelect').disabled = false;
+                            initAppLogic();
+                        }
+                        renderAll();
+                    } else {
+                        renderActiveSchedule();
+                        scheduleNextBell();
+                    }
+                    
+                    if (!data) {
+                        saveDataToRealtimeDB(); 
+                    }
+                });
+            }
+
+            async function saveDataToRealtimeDB() {
+                if (!auth.currentUser) return;
+                const appData = { 
+                    masterJam: masterJam || [], 
+                    masterBel: masterBel || [], 
+                    jadwalKhusus: jadwalKhusus || [], 
+                    masterJadwal: masterJadwal || {}, 
+                    savedTemplate: savedTemplate || 'HARI NORMAL', 
+                    manualDayOverride: manualDayOverride || null,
+                    temporaryOverride: temporaryOverride || { date: null, name: null }
+                };
+                try {
+                    const configRef = ref(db, 'schoolBellConfig');
+                    await set(configRef, appData);
+                } catch (error) { console.error("Gagal menyimpan data:", error); showToast(`Gagal menyimpan: ${error.message}`, "error"); }
+            }
+            
+            function applyConfig(data) {
+                masterJam = data.masterJam || [];
+                masterBel = data.masterBel || Array.from({ length: 30 }, (_, i) => ({ id: i + 1, nama: `Bel ${i + 1}`, file: '' }));
+                jadwalKhusus = data.jadwalKhusus || [];
+                masterJadwal = data.masterJadwal || {};
+                savedTemplate = data.savedTemplate || 'HARI NORMAL';
+                manualDayOverride = data.manualDayOverride || null;
+                temporaryOverride = data.temporaryOverride || { date: null, name: null };
+
+                const today = getTodayDateString();
+                if (temporaryOverride.date !== today) {
+                    temporaryOverride = { date: null, name: null };
+                }
+                if (manualDayOverride && manualDayOverride.date !== today) {
+                    manualDayOverride = null;
+                }
+
+                templates.forEach(t => { if (!masterJadwal[t]) masterJadwal[t] = {}; jadwalUtama.forEach(d => { if (!masterJadwal[t][d]) masterJadwal[t][d] = {}; }); });
+                jadwalKhusus.forEach(k => { if (!k.jadwal) k.jadwal = {}; });
+            }
+
+            function determineActiveScheduleInfo() {
+                const todayDate = getTodayDateString();
+                const todayDayName = new Date().toLocaleString('id-ID', { weekday: 'long' });
+
+                if (temporaryOverride.date === todayDate && temporaryOverride.name) {
+                    const khusus = jadwalKhusus.find(j => j.nama === temporaryOverride.name);
+                    return { schedule: khusus ? khusus.jadwal : {}, displayName: temporaryOverride.name.toUpperCase(), isOverride: true, effectiveDayName: temporaryOverride.name };
+                }
+
+                const effectiveDayName = (manualDayOverride && manualDayOverride.dayName) || todayDayName;
+                const templateSchedule = masterJadwal[savedTemplate] || {};
+                
+                return { schedule: templateSchedule[effectiveDayName] || {}, displayName: savedTemplate.replace(/_/g, ' '), isOverride: false, effectiveDayName: effectiveDayName };
+            }
+
+            function scheduleNextBell() {
+                if (nextBellTimeout) clearTimeout(nextBellTimeout);
+                const now = new Date();
+                const { schedule } = determineActiveScheduleInfo();
+                if (!schedule) return;
+                const scheduledTimes = Object.keys(schedule).filter(jam => schedule[jam] > 0).sort();
+                if (scheduledTimes.length === 0) return;
+                let nextBellTime = scheduledTimes.map(jam => {
+                    const [hours, minutes] = jam.split(':');
+                    const bellDate = new Date(); bellDate.setHours(hours, minutes, 0, 0);
+                    return bellDate;
+                }).find(bellDate => bellDate > now);
+                if (nextBellTime) {
+                    const timeToNextBell = nextBellTime.getTime() - now.getTime();
+                    nextBellTimeout = setTimeout(() => {
+                        const jam = getStandardTime(nextBellTime);
+                        const belId = schedule[jam];
+                        const bel = masterBel.find(b => b.id === belId);
+                        if (bel && bel.file) playSound(bel.file, jam);
+                        renderActiveSchedule();
+                        scheduleNextBell();
+                    }, timeToNextBell);
+                }
+            }
+            
+            function getTodayDateString() { return new Date().toISOString().split('T')[0]; }
+            function getStandardTime(dateObj) { return `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`; }
+            function updateTime() {
+                const now = new Date();
+                document.getElementById('time').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+
+            function renderAll() { renderJadwalUtamaButtons(); renderJadwalKhususButtons(); renderManualSoundButtons(); renderHariList(); renderJamList(); renderBelList(); renderTemplateSelect(); populateSettingsDropdowns(); updateHeaderDisplay(); renderActiveSchedule(); }
+            function renderTemplateSelect() { const select = document.getElementById('templateSelect'); select.innerHTML = templates.map(t => `<option value="${t}" ${t === savedTemplate ? 'selected' : ''}>${t.replace(/_/g, ' ')}</option>`).join(''); }
+            
+            function renderJadwalUtamaButtons() { const container = document.getElementById('jadwalUtamaContainer'); container.innerHTML = ''; const { effectiveDayName, isOverride } = determineActiveScheduleInfo(); jadwalUtama.forEach(day => { const btn = document.createElement('button'); btn.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal'; btn.textContent = day; if (day === effectiveDayName && !isOverride) { btn.classList.add('active'); } container.appendChild(btn); }); }
+            function renderJadwalKhususButtons() { const container = document.getElementById('jadwalKhususContainer'); container.innerHTML = ''; const todayDate = getTodayDateString(); jadwalKhusus.forEach(item => { const btn = document.createElement('button'); btn.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal'; btn.textContent = item.nama; btn.dataset.nama = item.nama; if (temporaryOverride.date === todayDate && temporaryOverride.name === item.nama) { btn.classList.add('active'); } container.appendChild(btn); }); if (jadwalKhusus.length === 0) { container.innerHTML = `<p class="text-slate-400 col-span-full text-center">Belum ada jadwal khusus.</p>`; } }
+            
+            function updateHeaderDisplay() { const { displayName, isOverride, effectiveDayName } = determineActiveScheduleInfo(); const activeDayDisplay = document.getElementById('activeDayDisplay'); const activeTemplateDisplay = document.getElementById('activeTemplateDisplay'); if (isOverride) { activeDayDisplay.textContent = displayName; activeTemplateDisplay.textContent = '(JADWAL KHUSUS)'; } else { activeDayDisplay.textContent = effectiveDayName.toUpperCase(); activeTemplateDisplay.textContent = `(${displayName})`; } }
+            function renderActiveSchedule() { const container = document.getElementById('activeScheduleContainer'); container.innerHTML = ''; const { schedule } = determineActiveScheduleInfo(); if (!schedule || Object.keys(schedule).length === 0) { container.innerHTML = `<p class="text-slate-400 text-center p-2">Tidak ada jadwal.</p>`; return; } const scheduledTimes = Object.keys(schedule).filter(jam => schedule[jam] > 0).sort(); if (scheduledTimes.length === 0) { container.innerHTML = `<p class="text-slate-400 text-center p-2">Tidak ada jadwal.</p>`; return; } const currentTime = getStandardTime(new Date()); scheduledTimes.forEach((jam, index) => { const belId = schedule[jam]; const bel = masterBel.find(b => b.id === belId); if (bel) { const item = document.createElement('div'); item.className = 'flex justify-between items-center bg-slate-50 p-2 rounded-md border border-slate-200 transition-all duration-300 hover:shadow-md hover:border-indigo-300 cursor-default'; item.dataset.jam = jam; if (jam <= currentTime) item.classList.add('past-bell'); item.innerHTML = `<div class="flex items-center"><span class="font-mono text-slate-400 text-sm mr-2">[${index + 1}]</span><span class="font-bold text-slate-800">${jam}</span></div><span class="text-sm bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded-full">${bel.nama}</span>`; container.appendChild(item); } }); }
+            function renderHariList() { const container = document.getElementById('hariListContainer'); container.innerHTML = ''; if (jadwalKhusus.length === 0) { container.innerHTML = `<p class="text-slate-500 text-center p-4 bg-slate-100 rounded-md">Belum ada jadwal khusus.</p>`; return; } jadwalKhusus.forEach((item, index) => { container.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-md shadow-sm border hover:bg-slate-50 transition-colors"><span class="text-lg font-medium">${item.nama}</span><div class="flex gap-2"><button class="btn btn-edit p-2 edit-hari-btn" data-index="${index}" title="Edit"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button><button class="btn btn-delete p-2 delete-hari-btn" data-index="${index}" title="Hapus"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div></div>`; }); }
+            function renderJamList() { const container = document.getElementById('jamListContainer'); container.innerHTML = masterJam.length === 0 ? `<p class="text-slate-500 text-center p-4 bg-slate-100 rounded-md">Belum ada jam.</p>` : ''; [...masterJam].sort().forEach((jam, index) => { container.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-md shadow-sm border hover:bg-slate-50 transition-colors"><span class="font-mono text-slate-500 mr-2">[${index + 1}]</span><span class="text-lg font-medium flex-grow">${jam}</span><div class="flex gap-2"><button class="btn btn-edit p-2 edit-jam-btn" data-jam-value="${jam}" title="Edit"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button><button class="btn btn-delete p-2 delete-jam-btn" data-jam-value="${jam}" title="Hapus"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div></div>`; }); }
+            function renderBelList() { const container = document.getElementById('belListContainer'); container.innerHTML = ''; masterBel.forEach((bel, index) => { container.innerHTML += `<div class="card p-3 flex justify-between items-center"><div><p class="font-bold text-slate-800">${bel.nama}</p><p class="text-sm text-slate-500">${bel.file || '<i>Belum diatur</i>'}</p></div><button class="btn btn-warning p-2 edit-bel-btn" data-index="${index}" title="Edit Bel ${bel.id}"><svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L14.732 3.732z"></path></svg></button></div>`; }); }
+            
+            function renderManualSoundButtons() { 
+                const grid = document.getElementById('manualSoundGrid'); 
+                grid.innerHTML = ''; 
+                masterBel.forEach((bel, index) => { 
+                    const button = document.createElement('button'); 
+                    button.className = 'btn flex items-center justify-center text-center h-full whitespace-normal'; 
+                    button.textContent = bel.nama; 
+                    button.dataset.belIndex = index; 
+                    grid.appendChild(button); 
+                });
+            }
+
+            function populateSettingsDropdowns() { const templateSelect = document.getElementById('jadwalTemplateSelect'); const daySelect = document.getElementById('jadwalDaySelect'); templateSelect.innerHTML = [...templates.map(t => `<option value="${t}">${t.replace(/_/g, ' ')}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join(''); function updateDaySelect() { const selectedTemplate = templateSelect.value; let options = []; if (selectedTemplate === 'JADWAL_KHUSUS') { options = jadwalKhusus.map(j => j.nama); } else { options = jadwalUtama; } daySelect.innerHTML = options.map(opt => `<option value="${opt}">${opt}</option>`).join(''); if (options.length === 0 && selectedTemplate === 'JADWAL_KHUSUS') { daySelect.innerHTML = `<option value="">-- Tambah Hari Khusus Dahulu --</option>`; } renderJadwalTable(); } templateSelect.removeEventListener('change', updateDaySelect); daySelect.removeEventListener('change', renderJadwalTable); templateSelect.addEventListener('change', updateDaySelect); daySelect.addEventListener('change', renderJadwalTable); updateDaySelect(); }
+            function renderJadwalTable() { const tbody = document.querySelector('#jadwalTable tbody'); const template = document.getElementById('jadwalTemplateSelect').value; const day = document.getElementById('jadwalDaySelect').value; tbody.innerHTML = ''; if (!template || !day) { tbody.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-slate-500">Pilih template dan hari untuk melihat jadwal.</td></tr>`; return;} let schedule = {}; if (template === 'JADWAL_KHUSUS') { const khusus = jadwalKhusus.find(j => j.nama === day); if (khusus) schedule = khusus.jadwal; } else { schedule = masterJadwal[template]?.[day] || {}; } if (masterJam.length === 0) { tbody.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-slate-500">Silakan tambahkan jam pada tab 'Atur Jam'.</td></tr>`; return; } const configuredBells = masterBel.filter(bel => bel.file && bel.file.trim() !== ''); [...masterJam].sort().forEach((jam, index) => { const savedBelId = schedule[jam] || 0; let optionsHtml = `<option value="0">(Tidak Ada Bel)</option>`; configuredBells.forEach(bel => { optionsHtml += `<option value="${bel.id}" ${bel.id == savedBelId ? 'selected' : ''}>${bel.nama}</option>`; }); tbody.innerHTML += `<tr class="hover:bg-slate-100"><td class="p-3 font-medium flex items-center"><span class="font-mono text-slate-400 text-sm mr-2">[${index + 1}]</span>${jam}</td><td class="p-3"><select class="w-full bg-white border rounded-md p-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none" data-jam="${jam}">${optionsHtml}</select></td></tr>`; }); }
+            function showToast(message, type = 'info') { const toast = document.createElement('div'); toast.className = `toast toast-${type}`; toast.textContent = message; document.getElementById('toast-container').appendChild(toast); setTimeout(() => { toast.classList.add('hiding'); toast.addEventListener('animationend', () => toast.remove()); }, 3000); }
+            function showModal(modalKey) { document.getElementById(MODALS[modalKey]).classList.add('visible'); }
+            function hideModal(modalKey) { document.getElementById(MODALS[modalKey]).classList.remove('visible'); }
+            
+            function playSound(fileName, jam = null) {
+                if (!fileName) {
+                    showToast("Tidak ada file suara yang diatur.", "error");
+                    return;
+                }
+                
+                if (activeSound.toast) activeSound.toast.remove();
+                if (activeSound.ringingItem) activeSound.ringingItem.classList.remove('bell-ringing');
+
+                const newToast = document.createElement('div');
+                newToast.className = `toast toast-success`;
+                newToast.textContent = `MEMUTAR SUARA: ${fileName}`;
+                document.getElementById('toast-container').appendChild(newToast);
+                activeSound.toast = newToast;
+
+                setTimeout(() => {
+                    if (newToast.parentElement) {
+                        newToast.classList.add('hiding');
+                        newToast.addEventListener('animationend', () => {
+                            newToast.remove();
+                            if (activeSound.toast === newToast) activeSound.toast = null;
+                        });
+                    }
+                }, 3000);
+
+                activeSound.ringingItem = null;
+                if (jam) {
+                    const bellItem = document.querySelector(`#activeScheduleContainer [data-jam="${jam}"]`);
+                    if (bellItem) {
+                        bellItem.classList.add('bell-ringing');
+                        activeSound.ringingItem = bellItem;
+                        bellItem.addEventListener('animationend', () => {
+                            bellItem.classList.remove('bell-ringing');
+                            if (activeSound.ringingItem === bellItem) activeSound.ringingItem = null;
+                        }, { once: true });
+                    }
+                }
+            }
+            
+            function setupEventListeners() {
+                document.getElementById('settingBtn').addEventListener('click', () => { 
+                    populateSettingsDropdowns(); 
+                    showModal('settings'); 
+                });
+                document.getElementById('closeSettings').addEventListener('click', () => {
+                    hideModal('settings');
+                    renderAll(); 
+                });
+
+                document.querySelectorAll('[data-action="close"]').forEach(btn => btn.addEventListener('click', (e) => e.target.closest('.modal-backdrop').classList.remove('visible')));
+                document.querySelectorAll('.tab-btn').forEach(button => { button.addEventListener('click', (e) => { document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); e.currentTarget.classList.add('active'); const tab = e.currentTarget.dataset.tab; document.querySelectorAll('.tab-content').forEach(content => content.classList.toggle('hidden', content.id !== `tab-content-${tab}`)); }); });
+                
+                document.getElementById('templateSelect').addEventListener('change', (e) => { savedTemplate = e.target.value; saveDataToRealtimeDB(); });
+
+                document.getElementById('jadwalUtamaContainer').addEventListener('click', (e) => { 
+                    if (e.target.matches('.btn-day')) { 
+                        const dayName = e.target.textContent; 
+                        if (manualDayOverride && manualDayOverride.dayName === dayName) { 
+                            manualDayOverride = null; 
+                            showToast(`Override hari dibatalkan.`, 'warning'); 
+                        } else { 
+                            manualDayOverride = { date: getTodayDateString(), dayName: dayName };
+                            showToast(`Jadwal ${dayName} diaktifkan sementara.`, 'info'); 
+                        } 
+                        temporaryOverride = { date: null, name: null }; 
+                        saveDataToRealtimeDB(); 
+                    } 
+                });
+
+                document.getElementById('jadwalKhususContainer').addEventListener('click', (e) => { 
+                    if (e.target.matches('.btn-day')) { 
+                        const nama = e.target.dataset.nama; 
+                        const todayDate = getTodayDateString(); 
+                        if (temporaryOverride.date === todayDate && temporaryOverride.name === nama) { 
+                            temporaryOverride = { date: null, name: null }; 
+                            showToast(`Jadwal ${nama} dinonaktifkan.`, 'warning'); 
+                        } else { 
+                            temporaryOverride = { date: todayDate, name: nama }; 
+                            showToast(`Jadwal khusus ${nama} diaktifkan.`, 'info'); 
+                        } 
+                        manualDayOverride = null; 
+                        saveDataToRealtimeDB(); 
+                    } 
+                });
+
+                document.getElementById('addHariForm').addEventListener('submit', e => { e.preventDefault(); const input = document.getElementById('hariInput'); const newHari = input.value.trim(); if (newHari && !jadwalKhusus.some(j => j.nama.toLowerCase() === newHari.toLowerCase())) { jadwalKhusus.push({ nama: newHari, jadwal: {} }); input.value = ''; saveDataToRealtimeDB().then(() => renderHariList()); } else { showToast('Nama jadwal tidak valid atau sudah ada!', 'error'); } });
+                document.getElementById('hariListContainer').addEventListener('click', e => { const target = e.target.closest('button'); if (!target) return; const index = parseInt(target.dataset.index); if (target.classList.contains('edit-hari-btn')) { document.getElementById('editHariIndex').value = index; document.getElementById('editHariInput').value = jadwalKhusus[index].nama; showModal('editHari'); } else if (target.classList.contains('delete-hari-btn')) { document.getElementById('deleteHariText').innerHTML = `Yakin ingin hapus jadwal <strong>${jadwalKhusus[index].nama}</strong>?`; document.getElementById('confirmDeleteHariBtn').dataset.deleteIndex = index; showModal('deleteHari'); } });
+                document.getElementById('editHariForm').addEventListener('submit', e => { e.preventDefault(); const index = parseInt(document.getElementById('editHariIndex').value); const oldName = jadwalKhusus[index].nama; const newName = document.getElementById('editHariInput').value.trim(); if (newName && !jadwalKhusus.some((j, i) => i !== index && j.nama.toLowerCase() === newName.toLowerCase())) { jadwalKhusus[index].nama = newName; if (temporaryOverride.name === oldName) { temporaryOverride.name = newName; } saveDataToRealtimeDB().then(() => { renderHariList(); hideModal('editHari'); }); } else { showToast('Nama jadwal tidak valid atau sudah ada!', 'error'); } });
+                document.getElementById('confirmDeleteHariBtn').addEventListener('click', e => { const index = parseInt(e.currentTarget.dataset.deleteIndex); jadwalKhusus.splice(index, 1); saveDataToRealtimeDB().then(() => { renderHariList(); hideModal('deleteHari'); }); });
+                document.getElementById('addJamForm').addEventListener('submit', e => { e.preventDefault(); const newJam = e.target.jamInput.value; if (newJam && !masterJam.includes(newJam)) { masterJam.push(newJam); e.target.reset(); saveDataToRealtimeDB().then(() => renderJamList()); } else { showToast('Jam sudah ada!', 'error'); } });
+                document.getElementById('jamListContainer').addEventListener('click', e => { const target = e.target.closest('button'); if (!target) return; const jamValue = target.dataset.jamValue; const originalIndex = masterJam.indexOf(jamValue); if (target.classList.contains('edit-jam-btn')) { document.getElementById('editJamIndex').value = originalIndex; document.getElementById('editJamInput').value = masterJam[originalIndex]; showModal('editJam'); } else if (target.classList.contains('delete-jam-btn')) { document.getElementById('deleteJamText').innerHTML = `Yakin ingin hapus jam <strong>${masterJam[originalIndex]}</strong>? Ini akan menghapusnya dari semua jadwal.`; document.getElementById('confirmDeleteHariBtn').dataset.deleteIndex = originalIndex; showModal('deleteJam'); } });
+                document.getElementById('editJamForm').addEventListener('submit', e => { e.preventDefault(); const index = parseInt(document.getElementById('editJamIndex').value); const oldJam = masterJam[index]; const newJam = document.getElementById('editJamInput').value; if (newJam && newJam !== oldJam && !masterJam.includes(newJam)) { masterJam[index] = newJam; Object.values(masterJadwal).forEach(template => { Object.values(template).forEach(day => { if (day[oldJam]) { day[newJam] = day[oldJam]; delete day[oldJam]; } }); }); jadwalKhusus.forEach(khusus => { if (khusus.jadwal[oldJam]) { khusus.jadwal[newJam] = khusus.jadwal[oldJam]; delete khusus.jadwal[oldJam]; } }); saveDataToRealtimeDB().then(() => { renderJamList(); hideModal('editJam'); }); } else if (newJam === oldJam) { hideModal('editJam'); } else { showToast('Jam sudah ada!', 'error'); } });
+                document.getElementById('confirmDeleteJamBtn').addEventListener('click', e => { const index = parseInt(e.currentTarget.dataset.deleteIndex); const deletedJam = masterJam.splice(index, 1)[0]; Object.values(masterJadwal).forEach(template => { Object.values(template).forEach(day => { delete day[deletedJam]; }); }); jadwalKhusus.forEach(khusus => delete khusus.jadwal[deletedJam]); saveDataToRealtimeDB().then(() => { renderJamList(); hideModal('deleteJam'); }); });
+                document.getElementById('belListContainer').addEventListener('click', e => { const target = e.target.closest('.edit-bel-btn'); if (target) { const index = parseInt(target.dataset.index); const bel = masterBel[index]; const sel = document.getElementById('editBelFileSelect'); document.getElementById('editBelTitleId').textContent = bel.id; document.getElementById('editBelIndex').value = index; document.getElementById('editBelNamaInput').value = bel.nama; sel.innerHTML = availableSounds.map(s => `<option value="${s.value}" ${s.value === bel.file ? 'selected' : ''}>${s.text}</option>`).join(''); showModal('editBel'); } });
+                document.getElementById('editBelForm').addEventListener('submit', e => { e.preventDefault(); const index = parseInt(document.getElementById('editBelIndex').value); masterBel[index].nama = document.getElementById('editBelNamaInput').value; masterBel[index].file = document.getElementById('editBelFileSelect').value; saveDataToRealtimeDB().then(() => { renderBelList(); hideModal('editBel'); }); });
+                document.querySelector('#jadwalTable tbody').addEventListener('change', e => { if (e.target.tagName === 'SELECT') { const template = document.getElementById('jadwalTemplateSelect').value; const day = document.getElementById('jadwalDaySelect').value; const jam = e.target.dataset.jam; const belId = parseInt(e.target.value); let targetSchedule; if (template === 'JADWAL_KHUSUS') { targetSchedule = jadwalKhusus.find(j => j.nama === day)?.jadwal; } else { targetSchedule = masterJadwal[template]?.[day]; } if (targetSchedule) { if (belId === 0) { delete targetSchedule[jam]; } else { targetSchedule[jam] = belId; } saveDataToRealtimeDB(); } } });
+                document.getElementById('manualSoundGrid').addEventListener('click', e => { if (e.target.matches('.btn')) { const index = parseInt(e.target.dataset.belIndex); const bel = masterBel[index]; if (bel) playSound(bel.file); } });
+                document.getElementById('testSoundBtn').addEventListener('click', () => { const fileName = document.getElementById('editBelFileSelect').value; playSound(fileName); });
+            }
+            
+            function initAppLogic() {
+                availableSounds = [ { value: '', text: '(Pilih Suara)' }, { value: 'bel_masuk.mp3', text: 'bel_masuk.mp3' }, { value: 'bel_istirahat.mp3', text: 'bel_istirahat.mp3' }, { value: 'bel_pulang.mp3', text: 'bel_pulang.mp3' }];
+                setupEventListeners();
+                
+                let currentDateString = getTodayDateString();
+                setInterval(() => {
+                    updateTime();
+                    const newDateString = getTodayDateString();
+                    if (newDateString !== currentDateString) {
+                        console.log("Hari berganti, mereset override...");
+                        currentDateString = newDateString;
+                        
+                        let needsSave = false;
+                        if (temporaryOverride.date !== null) {
+                            temporaryOverride = { date: null, name: null };
+                            needsSave = true;
+                        }
+                        if (manualDayOverride !== null) {
+                            manualDayOverride = null;
+                            needsSave = true;
+                        }
+
+                        if(needsSave){
+                            saveDataToRealtimeDB();
+                            showToast("Selamat datang di hari yang baru! Jadwal kembali normal.", "info");
+                        }
+                    }
+                }, 1000);
+
+                setInterval(scheduleNextBell, 30000);
+                scheduleNextBell();
+            }
+        });
+    }
+    </script>
+</body>
+</html>
+
