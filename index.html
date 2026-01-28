@@ -323,7 +323,7 @@
                 try {
                     const configRef = ref(db, 'schoolBellConfig');
                     await set(configRef, appData);
-                } catch (error) { showToast(`Gagal menyimpan: ${error.message}`, "error"); }
+                } catch (error) { console.error("Gagal menyimpan data:", error); showToast(`Gagal menyimpan: ${error.message}`, "error"); }
             }
             
             function applyConfig(data) {
@@ -408,6 +408,7 @@
                     await set(commandRef, command);
                     showToast(`Perintah untuk membunyikan "${bel.nama}" terkirim.`, 'success');
                 } catch (error) {
+                    console.error("Gagal mengirim perintah remote:", error);
                     showToast("Gagal mengirim perintah ke server.", "error");
                 }
             }
@@ -563,43 +564,13 @@
                 document.getElementById('editBelForm').addEventListener('submit', async e => { e.preventDefault(); const index = parseInt(document.getElementById('editBelIndex').value); masterBel[index].nama = document.getElementById('editBelNamaInput').value; masterBel[index].file = document.getElementById('editBelFileSelect').value; await saveDataToRealtimeDB(); renderBelList(); hideModal('editBel'); });
             }
             function renderJadwalUtamaButtons() { const c = document.getElementById('jadwalUtamaContainer'); c.innerHTML = ''; const { effectiveDayName, isOverride } = determineActiveScheduleInfo(); jadwalUtama.forEach(d => { const b = document.createElement('button'); b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal'; b.textContent = d; if (d === effectiveDayName && !isOverride) b.classList.add('active'); c.appendChild(b); }); }
-            
-            function renderJadwalKhususButtons() { 
-                const c = document.getElementById('jadwalKhususContainer'); 
-                c.innerHTML = ''; 
-                const t = getTodayDateString(); 
-                
-                if (!jadwalKhusus || jadwalKhusus.length === 0) {
-                     c.innerHTML = `<p class="text-slate-400 col-span-full text-center">Belum ada jadwal khusus.</p>`;
-                     return;
-                }
-                
-                jadwalKhusus.forEach(i => { 
-                    const b = document.createElement('button'); 
-                    b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal'; 
-                    b.textContent = i.nama; 
-                    b.dataset.nama = i.nama; 
-                    if (temporaryOverride.date === t && temporaryOverride.name === i.nama) b.classList.add('active'); 
-                    c.appendChild(b); 
-                }); 
-            }
-
+            function renderJadwalKhususButtons() { const c = document.getElementById('jadwalKhususContainer'); c.innerHTML = ''; const t = getTodayDateString(); if (!jadwalKhusus || jadwalKhusus.length === 0) { c.innerHTML = `<p class="text-slate-400 col-span-full text-center">Belum ada jadwal khusus.</p>`; } else { jadwalKhusus.forEach(i => { const b = document.createElement('button'); b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal'; b.textContent = i.nama; b.dataset.nama = i.nama; if (temporaryOverride.date === t && temporaryOverride.name === i.nama) b.classList.add('active'); c.appendChild(b); }); } }
             function renderManualSoundButtons() { const g = document.getElementById('manualSoundGrid'); g.innerHTML = ''; masterBel.forEach((b, i) => { const btn = document.createElement('button'); btn.className = 'btn flex items-center justify-center text-center h-full whitespace-normal'; btn.textContent = b.nama; btn.dataset.belIndex = i; g.appendChild(btn); }); }
             function renderTemplateSelect() { const s = document.getElementById('templateSelect'); s.innerHTML = templates.map(t => `<option value="${t}" ${t === savedTemplate ? 'selected' : ''}>${t.replace(/_/g, ' ')}</option>`).join(''); }
             function updateHeaderDisplay() { const { displayName, isOverride, effectiveDayName } = determineActiveScheduleInfo(); document.getElementById('activeDayDisplay').textContent = isOverride ? displayName : effectiveDayName.toUpperCase(); document.getElementById('activeTemplateDisplay').textContent = `(${isOverride ? 'JADWAL KHUSUS' : displayName})`; }
             function renderActiveSchedule() { const c = document.getElementById('activeScheduleContainer'); const { schedule } = determineActiveScheduleInfo(); if (!schedule || Object.keys(schedule).length === 0) { c.innerHTML = `<p class="text-slate-400 text-center p-2">Tidak ada jadwal.</p>`; return; } const sortedSchedule = Object.keys(schedule).filter(j => schedule[j] > 0).sort(); if (sortedSchedule.length === 0) { c.innerHTML = `<p class="text-slate-400 text-center p-2">Tidak ada jadwal.</p>`; return; } const currentTime = getStandardTime(new Date()); c.innerHTML = ''; sortedSchedule.forEach((jam, i) => { const belId = schedule[jam]; const bel = masterBel.find(b => b.id == belId); if (bel) { const item = document.createElement('div'); item.className = 'flex justify-between items-center p-2 rounded-md border'; item.dataset.jam = jam; if (jam <= currentTime) { item.classList.add('past-schedule-item'); } else { item.classList.add('bg-slate-50'); } item.innerHTML = `<div class="flex items-center"><span class="font-mono text-slate-400 text-sm mr-2">[${i + 1}]</span><span class="font-bold">${jam}</span></div><span class="text-sm bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded-full">${bel.nama}</span>`; c.appendChild(item); } }); }
             function renderHariList() { const c = document.getElementById('hariListContainer'); if(!c) return; c.innerHTML = ''; if (!jadwalKhusus || jadwalKhusus.length === 0) { c.innerHTML = `<p class="text-slate-500 text-center p-4">Belum ada.</p>`; return; } jadwalKhusus.forEach((i, x) => { c.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-md border"><span class="font-medium">${i.nama}</span><div class="flex gap-2"><button class="btn p-2 edit-hari-btn" data-index="${x}">Edit</button><button class="btn p-2 delete-hari-btn" data-index="${x}">Hapus</button></div></div>`; }); }
-            
-            function renderJamList() { 
-                const c = document.getElementById('jamListContainer'); 
-                if(!c) return; 
-                c.innerHTML = ''; 
-                if (masterJam.length === 0) { c.innerHTML = `<p class="text-slate-500 text-center p-4">Belum ada.</p>`; return; } 
-                [...masterJam].sort().forEach((j) => { 
-                    c.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-md border"><span class="font-medium">${j}</span><div class="flex gap-2"><button class="btn p-2 edit-jam-btn" data-jam-value="${j}">Edit</button><button class="btn p-2 delete-jam-btn" data-jam-value="${j}">Hapus</button></div></div>`; 
-                }); 
-            }
-            
+            function renderJamList() { const c = document.getElementById('jamListContainer'); if(!c) return; c.innerHTML = ''; if (masterJam.length === 0) { c.innerHTML = `<p class="text-slate-500 text-center p-4">Belum ada.</p>`; return; } [...masterJam].sort().forEach((j) => { c.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-md border"><span class="font-medium">${j}</span><div class="flex gap-2"><button class="btn p-2 edit-jam-btn" data-jam-value="${j}">Edit</button><button class="btn p-2 delete-jam-btn" data-jam-value="${j}">Hapus</button></div></div>`; }); }
             function renderBelList() { const c = document.getElementById('belListContainer'); if(!c) return; c.innerHTML = ''; masterBel.forEach((b, i) => { c.innerHTML += `<div class="card p-3 flex justify-between items-center"><div><p class="font-bold">${b.nama}</p><p class="text-sm text-slate-500">${b.file || '<i>Belum diatur</i>'}</p></div><button class="btn p-2 edit-bel-btn" data-index="${i}">Edit</button></div>`; }); }
             function populateSettingsDropdowns() { const t = document.getElementById('jadwalTemplateSelect'); const d = document.getElementById('jadwalDaySelect'); if(!t || !d) return; t.innerHTML = [...templates.map(v => `<option value="${v}">${v.replace(/_/g, ' ')}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join(''); function u() { const s = t.value; let o = (s === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama; d.innerHTML = o.map(v => `<option value="${v}">${v}</option>`).join(''); if (o.length === 0 && s === 'JADWAL_KHUSUS') d.innerHTML = `<option value="">-- Tambah Dulu --</option>`; renderJadwalTable(); } t.addEventListener('change', u); d.addEventListener('change', renderJadwalTable); u(); }
             function renderJadwalTable() { const b = document.querySelector('#jadwalTable tbody'); if(!b) return; const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value; b.innerHTML = ''; if (!t || !d) return; let s = {}; if (t === 'JADWAL_KHUSUS') { const k = jadwalKhusus.find(j => j.nama === d); if (k) s = k.jadwal; } else { s = masterJadwal[t]?.[d] || {}; } if (masterJam.length === 0) { b.innerHTML = `<tr><td colspan="2" class="p-4 text-center">Tambah jam dulu.</td></tr>`; return; } const c = masterBel.filter(l => l.file || l.nama); [...masterJam].sort().forEach(j => { const i = s[j] || 0; let o = `<option value="0">(Tidak Ada Bel)</option>`; c.forEach(l => { o += `<option value="${l.id}" ${l.id == i ? 'selected' : ''}>${l.nama}</option>`; }); b.innerHTML += `<tr><td class="p-3">${j}</td><td class="p-3"><select class="w-full bg-white border p-2 rounded-md" data-jam="${j}">${o}</select></td></tr>`; }); }
