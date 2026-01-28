@@ -34,10 +34,9 @@
         @keyframes flash-bell { 0%, 100% { background-color: #f9fafb; border-color: #e5e7eb; transform: scale(1); } 50% { background-color: #ffedd5; border-color: #fb923c; transform: scale(1.03); } }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #f97316; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        /* Style untuk jadwal yang sudah terlewat */
         .past-schedule-item {
-            background-color: #fef9c3; /* amber-100 */
-            border-color: #fde68a; /* amber-200 */
+            background-color: #fef9c3;
+            border-color: #fde68a;
         }
     </style>
 </head>
@@ -275,8 +274,6 @@
                         }
                         renderAll();
                     } else {
-                        // Jika modal terbuka, cukup perbarui tabel jadwal dan daftar aktif
-                        // untuk merefleksikan perubahan secara real-time
                         if (document.querySelector('#jadwalTable tbody')) renderJadwalTable();
                         renderActiveSchedule();
                     }
@@ -296,7 +293,6 @@
                             { value: '', text: '(Pilih Suara)' },
                             ...soundFiles.map(file => ({ value: file, text: file }))
                         ];
-                        // Jika modal pengaturan bel terbuka, perbarui dropdownnya
                         if(document.getElementById('editBelModal').classList.contains('visible')){
                            const sel = document.getElementById('editBelFileSelect');
                            const currentFile = sel.value;
@@ -390,7 +386,6 @@
                 const now = new Date();
                 document.getElementById('time').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                // Panggil renderActiveSchedule setiap detik agar highlight selalu update
                 renderActiveSchedule();
             }
 
@@ -415,11 +410,10 @@
             }
             
             function playSound(bel, jam = null) {
-                if (jam === null) { // Ini adalah panggilan manual
+                if (jam === null) { 
                     sendRemotePlayCommand(bel);
                     return;
                 }
-                // Ini adalah simulasi untuk jadwal otomatis di web
                 if (!bel || !bel.file) { 
                     showToast(`Jadwal otomatis: Bel ID ${bel.id || ''} tidak memiliki file.`, "warning");
                     return;
@@ -437,7 +431,6 @@
             function initAppLogic() {
                 setupEventListeners();
                 let currentDateString = getTodayDateString();
-                // Jalankan updateTime setiap detik
                 setInterval(updateTime, 1000);
                 
                 setInterval(() => {
@@ -450,7 +443,7 @@
                         if(needsSave){ saveDataToRealtimeDB(); showToast("Selamat datang di hari yang baru! Jadwal kembali normal.", "info"); }
                     }
                 }, 1000);
-                setInterval(scheduleNextBell, 30000); // Cek jadwal berikutnya setiap 30 detik
+                setInterval(scheduleNextBell, 30000); 
                 scheduleNextBell();
             }
             
@@ -541,4 +534,3 @@
     </script>
 </body>
 </html>
-
