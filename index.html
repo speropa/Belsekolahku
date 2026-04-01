@@ -67,36 +67,48 @@
         
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #f97316; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Animasi Getar untuk PIN Salah */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        .error-shake {
+            animation: shake 0.4s ease-in-out;
+            border-color: #ef4444 !important; /* warna border merah */
+            color: #ef4444 !important; /* teks merah */
+            background-color: #fef2f2 !important; /* background merah pudar */
+        }
     </style>
 </head>
 <body class="h-screen w-full overflow-hidden flex flex-col">
     <div id="toast-container"></div>
     
     <!-- LOADING & LOGIN (Overlay) -->
-    <div id="loading-spinner" class="fixed inset-0 flex flex-col items-center justify-center bg-slate-100 z-[60]">
+    <!-- PERUBAHAN: Latar belakang diubah menjadi gelap (bg-[#334155]) dan warna teks keterangan diubah ke terang -->
+    <div id="loading-spinner" class="fixed inset-0 flex flex-col items-center justify-center bg-[#334155] z-[60]">
         <div class="spinner"></div>
-        <p class="mt-4 text-slate-600 font-semibold">Menghubungkan ke Server...</p>
+        <p class="mt-4 text-slate-200 font-semibold">Menghubungkan ke Server...</p>
     </div>
 
-    <div id="login-page" class="fixed inset-0 flex items-center justify-center bg-slate-100 z-[55] hidden">
-        <div class="card w-full max-w-sm p-8 shadow-xl">
-            <div class="text-center mb-6">
-                <img src="https://raw.githubusercontent.com/smp2pajangan/gambar/refs/heads/main/logosmpn2pjg.png" class="w-16 h-16 mx-auto mb-4 rounded-full">
-                <h2 class="text-2xl font-bold text-slate-800">Login Remote</h2>
-            </div>
-            <form id="login-form">
-                <div class="space-y-4">
-                    <input type="text" id="username" class="w-full bg-slate-50 border rounded-md p-3 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Username" required>
-                    <div class="relative">
-                        <input type="password" id="password" class="w-full bg-slate-50 border rounded-md p-3 pr-10 focus:ring-2 focus:ring-orange-500 outline-none" placeholder="Password" required>
-                        <button type="button" id="togglePassword" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        </button>
-                    </div>
+    <!-- PERUBAHAN: Latar belakang diubah menjadi gelap (bg-[#334155]) -->
+    <div id="login-page" class="fixed inset-0 flex items-center justify-center bg-[#334155] z-[55] hidden">
+        <div class="card w-full max-w-sm p-8 shadow-2xl">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-white rounded-full p-2 mx-auto mb-4 shadow-sm border border-slate-100 flex items-center justify-center">
+                    <img src="https://raw.githubusercontent.com/smp2pajangan/gambar/refs/heads/main/logosmpn2pjg.png" class="w-full h-full object-contain">
                 </div>
-                <p id="login-error" class="text-red-500 text-sm mt-4 text-center hidden">Login gagal.</p>
-                <button type="submit" class="w-full btn bg-orange-600 text-white mt-6 py-3 hover:bg-orange-700 border-0">Masuk</button>
-            </form>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">Akses Remote</h2>
+                <p class="text-sm text-slate-500 mt-1">Masukkan PIN untuk mengontrol bel</p>
+            </div>
+            <div id="login-form">
+                <div class="space-y-4">
+                    <!-- PERUBAHAN: Ditambahkan atribut 'autofocus' di akhir input -->
+                    <input type="password" id="pin" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-4 text-center text-3xl font-black tracking-[0.3em] focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-all duration-300" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="off" autofocus>
+                </div>
+                <p id="login-status" class="text-slate-500 text-sm mt-4 text-center font-medium h-5 transition-all">Menunggu input...</p>
+            </div>
         </div>
     </div>
 
@@ -490,13 +502,18 @@
             const hardcodedEmail = "speropa@gmail.com";
             const hardcodedPassword = "Pajangan201184*";
 
-            // Login Otomatis
+            // Login Otomatis (Background) agar dapat akses baca database
             signInWithEmailAndPassword(auth, hardcodedEmail, hardcodedPassword)
                 .then(() => {
                     document.getElementById('loading-spinner').classList.add('hidden');
-                    document.getElementById('login-page').classList.add('hidden');
-                    document.getElementById('main-app').classList.remove('hidden');
-                    startApp();
+                    // Tampilkan form input PIN
+                    document.getElementById('login-page').classList.remove('hidden');
+                    
+                    // Otomatis meletakkan kursor (focus) ke input PIN lebih agresif
+                    const pinInput = document.getElementById('pin');
+                    setTimeout(() => {
+                        pinInput.focus();
+                    }, 150);
                 })
                 .catch(err => {
                     document.getElementById('loading-spinner').classList.add('hidden');
@@ -504,27 +521,74 @@
                     console.error("Auth fail:", err);
                 });
 
-            // Login Manual Trigger
-            document.getElementById('login-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const u = document.getElementById('username').value;
-                const p = document.getElementById('password').value;
-                
-                try {
-                    const snap = await get(ref(db, 'Login'));
-                    if(snap.exists() && snap.val().user === u && snap.val().password === p) {
-                        document.getElementById('login-page').classList.add('hidden');
-                        document.getElementById('main-app').classList.remove('hidden');
-                        startApp();
-                    } else {
-                        document.getElementById('login-error').classList.remove('hidden');
-                    }
-                } catch(err) { console.error(err); }
+            // FITUR BARU: Klik sembarang tempat di layar login untuk langsung memfokuskan input PIN
+            document.getElementById('login-page').addEventListener('click', () => {
+                const pinInput = document.getElementById('pin');
+                if (!pinInput.disabled) {
+                    pinInput.focus();
+                }
             });
 
-            document.getElementById('togglePassword').onclick = () => {
-                const x = document.getElementById('password'); x.type = x.type==='password'?'text':'password';
-            };
+            // Logika Verifikasi PIN Otomatis
+            const pinInput = document.getElementById('pin');
+            const statusText = document.getElementById('login-status');
+            
+            pinInput.addEventListener('input', async (e) => {
+                // Hanya izinkan angka
+                pinInput.value = pinInput.value.replace(/[^0-9]/g, '');
+                
+                // Hapus efek error (jika ada) saat user mulai mengetik ulang
+                pinInput.classList.remove('error-shake');
+                statusText.textContent = "Menunggu input...";
+                statusText.className = "text-slate-500 text-sm mt-4 text-center font-medium h-5 transition-all";
+                
+                // Jika sudah 6 digit, otomatis cek
+                if (pinInput.value.length === 6) {
+                    pinInput.disabled = true; // Kunci input sementara
+                    statusText.textContent = "Memeriksa...";
+                    statusText.classList.replace('text-slate-500', 'text-orange-500');
+                    
+                    try {
+                        // Ambil PIN dari Firebase
+                        const snap = await get(ref(db, 'login/pin'));
+                        if(snap.exists() && snap.val().toString() === pinInput.value) {
+                            // Sukses
+                            statusText.textContent = "Berhasil!";
+                            statusText.classList.replace('text-orange-500', 'text-green-500');
+                            
+                            // Beri jeda sejenak untuk transisi, lalu masuk ke aplikasi utama
+                            setTimeout(() => {
+                                document.getElementById('login-page').classList.add('hidden');
+                                document.getElementById('main-app').classList.remove('hidden');
+                                startApp();
+                            }, 500);
+                        } else {
+                            // Gagal (PIN Salah) - Efek getar dan kosongkan input
+                            triggerPinError();
+                        }
+                    } catch(err) { 
+                        console.error(err); 
+                        triggerPinError("Koneksi gagal.");
+                    }
+                }
+            });
+
+            // Fungsi untuk menjalankan efek animasi PIN Salah
+            function triggerPinError(msg = "PIN salah!") {
+                statusText.textContent = msg;
+                statusText.classList.replace('text-orange-500', 'text-red-500');
+                pinInput.classList.add('error-shake'); // Panggil animasi CSS
+                
+                // Setelah animasi getar selesai, kosongkan input dan kembalikan fokus
+                setTimeout(() => {
+                    pinInput.value = '';
+                    pinInput.disabled = false;
+                    pinInput.focus();
+                    pinInput.classList.remove('error-shake');
+                    statusText.textContent = "Coba lagi...";
+                    statusText.classList.replace('text-red-500', 'text-slate-500');
+                }, 600);
+            }
             
             document.getElementById('btnFullscreen').onclick = () => {
                 if (!document.fullscreenElement) document.documentElement.requestFullscreen();
