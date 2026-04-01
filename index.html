@@ -2,7 +2,6 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <!-- SCALA 0.6 SESUAI PERMINTAAN -->
     <meta name="viewport" content="width=device-width, initial-scale=0.6, maximum-scale=0.6, user-scalable=no">
     <title>WEB REMOTE - SMPN 2 PAJANGAN</title>
     
@@ -10,58 +9,67 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; overflow: hidden; }
-        .card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05); }
+        /* Background aplikasi Abu-abu Gelap untuk meredam kontras */
+        body { font-family: 'Inter', sans-serif; background-color: #334155; color: #1e293b; margin: 0; padding: 0; }
         
-        /* HEADER BARU (DESKTOP STYLE) */
+        /* Kartu dikembalikan ke warna putih bersih dengan shadow lembut */
+        .card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        
+        /* Header utama tetap gradasi oranye */
         .main-header { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-radius: 0.75rem; color: white; position: relative; overflow: hidden; }
+        
         .main-header::before { content: ''; position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: none; }
         .main-header::after { content: ''; position: absolute; bottom: -30px; left: 10%; width: 100px; height: 100px; background: rgba(255,255,255,0.05); border-radius: 50%; pointer-events: none; }
 
-        .btn { background-color: #f1f5f9; color: #475569; border-radius: 0.5rem; padding: 0.5rem 1rem; font-weight: 600; transition: all 0.2s ease-in-out; border: 1px solid #cbd5e1; }
-        .btn:hover:not(:disabled) { background-color: #e2e8f0; transform: translateY(-2px); box-shadow: 0 2px 8px rgb(0 0 0 / 0.1); }
-        .btn:disabled { background-color: #e2e8f0; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; transform: none; box-shadow: none; }
-        .btn-day.active { background-color: #2563eb; color: white; border-color: #1d4ed8; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+        /* Tombol standar */
+        .btn { background-color: #f1f5f9; color: #475569; border-radius: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; transition: all 0.2s ease-in-out; border: 1px solid #cbd5e1; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1); }
+        .btn:hover:not(:disabled) { background-color: #e2e8f0; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08); }
+        .btn:active:not(:disabled) { transform: translateY(0); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
+        .btn:disabled { background-color: #f1f5f9; color: #94a3b8; cursor: not-allowed; border-color: #e2e8f0; transform: none; box-shadow: none; }
+        .btn-day.active { background-color: #2563eb; color: white; border-color: #1d4ed8; box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3), 0 2px 4px rgba(37, 99, 235, 0.2); }
         
-        /* Modal & Toast */
+        /* Modal Backdrop */
         .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(30, 41, 59, 0.7); backdrop-filter: blur(4px); z-index: 50; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
         .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+        
         .hidden { display: none !important; }
         
-        /* SIDEBAR SETTINGS STYLE */
+        /* Navigasi Pengaturan */
         .settings-nav-btn { text-align: left; width: 100%; padding: 0.75rem 1rem; margin-bottom: 0.25rem; border-radius: 0.375rem; color: #475569; font-weight: 500; transition: all 0.2s; border-left: 3px solid transparent; }
-        .settings-nav-btn:hover { background-color: #f1f5f9; color: #1e293b; }
-        .settings-nav-btn.active { background-color: #fff7ed; color: #ea580c; border-left-color: #ea580c; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .settings-nav-btn:hover { background-color: #f1f5f9; color: #1e293b; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transform: translateX(2px); }
+        .settings-nav-btn.active { background-color: #fff7ed; color: #ea580c; border-left-color: #ea580c; font-weight: 700; box-shadow: 0 2px 4px rgba(234, 88, 12, 0.1); }
 
+        /* Toast Popup */
         #toast-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
-        .toast { display: flex; align-items: center; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); color: white; font-weight: 600; min-width: 300px; animation: toast-in 0.5s ease; }
+        .toast { display: flex; align-items: center; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); color: white; font-weight: 600; min-width: 300px; animation: toast-in 0.5s ease; }
         .toast.hiding { animation: toast-out 0.5s ease forwards; }
         .toast-success { background-color: #22c55e; } .toast-error { background-color: #ef4444; } .toast-info { background-color: #3b82f6; } .toast-warning { background-color: #f59e0b; }
         @keyframes toast-in { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes toast-out { from { transform: translateY(0); opacity: 1; } to { transform: translateY(100%); opacity: 0; } }
         
-        /* Styles khusus Desktop Server */
-        .past-schedule-item { background-color: #fef9c3; border-color: #fde68a; opacity: 0.7; }
-        .current-schedule-item { background-color: #fff7ed; border-color: #fdba74; box-shadow: 0 0 0 2px #fdba74; z-index: 10; transform: scale(1.01); }
-        .row-filled { background-color: #ffedd5 !important; }
-        .row-filled select { border-color: #fdba74 !important; background-color: #fffaf5; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        /* WARNA LIST BEL (KUNING/ORANYE SEPERTI REFERENSI) */
+        .schedule-item { background-color: #fefce8; border-color: #fde047; transition: all 0.3s ease; }
+        .schedule-item .badge-text { background-color: #ffedd5; color: #ea580c; }
+        
+        .past-schedule-item { background-color: #f8fafc; border-color: #e2e8f0; opacity: 0.75; }
+        .past-schedule-item .time-text { color: #94a3b8; }
+        .past-schedule-item .badge-text { background-color: #f1f5f9; color: #64748b; }
+        
+        .current-schedule-item { background-color: #fef08a; border-color: #eab308; box-shadow: 0 0 0 2px #facc15; z-index: 10; transform: scale(1.01); }
+        .current-schedule-item .badge-text { background-color: #ea580c; color: #ffffff; }
+
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        
-        /* Input Mask Style */
-        .time-mask-input { letter-spacing: 0.1em; font-family: 'Courier New', Courier, monospace; font-weight: 700; }
 
-        /* Animation */
+        @keyframes pulse-orange { 0% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(234, 88, 12, 0); } 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); } }
+        .pulse-active { animation: pulse-orange 2s infinite; }
+        
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #f97316; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .bell-ringing { animation: flash-bell 1.5s ease-in-out; }
-        @keyframes flash-bell { 0%, 100% { background-color: #f9fafb; border-color: #e5e7eb; transform: scale(1); } 50% { background-color: #ffedd5; border-color: #fb923c; transform: scale(1.03); } }
-        @keyframes pulse-orange { 0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(249, 115, 22, 0); } 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); } }
-        .pulse-active { animation: pulse-orange 2s infinite; }
     </style>
 </head>
-<body class="p-4 sm:p-6 md:p-8 h-screen box-border flex flex-col">
+<body class="h-screen w-full overflow-hidden flex flex-col">
     <div id="toast-container"></div>
     
     <!-- LOADING & LOGIN (Overlay) -->
@@ -87,13 +95,13 @@
                     </div>
                 </div>
                 <p id="login-error" class="text-red-500 text-sm mt-4 text-center hidden">Login gagal.</p>
-                <button type="submit" class="w-full btn bg-orange-600 text-white mt-6 py-3 hover:bg-orange-700">Masuk</button>
+                <button type="submit" class="w-full btn bg-orange-600 text-white mt-6 py-3 hover:bg-orange-700 border-0">Masuk</button>
             </form>
         </div>
     </div>
 
     <!-- STATUS BAR ATAS (Hitam) -->
-    <div id="server-status-bar" class="fixed top-0 left-0 right-0 bg-slate-900 text-white text-xs py-2 px-4 flex justify-between items-center z-50 shadow-md">
+    <div id="server-status-bar" class="flex-none bg-slate-900 text-white text-xs py-2 px-4 flex justify-between items-center z-50 shadow-md">
         <div class="flex items-center gap-4 md:gap-6">
             <span class="font-extrabold text-orange-400 tracking-wider">WEB REMOTE</span>
             
@@ -114,13 +122,11 @@
         </div>
     </div>
 
-    <!-- MAIN APPLICATION (Layout Desktop) -->
-    <div id="main-app" class="mt-8 flex flex-col h-full hidden">
-        <div class="max-w-[98%] w-full mx-auto space-y-4 flex flex-col h-full">
-            
-            <!-- HEADER (NEW DESKTOP STYLE) -->
-            <header class="main-header p-4 grid grid-cols-1 md:grid-cols-3 gap-6 shadow-xl flex-shrink-0 z-10">
-                <!-- KIRI -->
+    <!-- MAIN APP WRAPPER -->
+    <div id="main-app" class="flex-1 flex flex-col p-4 md:p-5 overflow-hidden hidden">
+        <div class="w-full max-w-[98%] mx-auto flex-1 flex flex-col gap-4 overflow-hidden">
+            <header class="flex-none main-header p-5 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-xl z-10">
+                <!-- KIRI: Logo & Judul -->
                 <div class="flex items-center space-x-4 z-10">
                     <div class="bg-white/20 p-2 rounded-full backdrop-blur-sm shadow-inner">
                         <img id="school-logo" src="https://raw.githubusercontent.com/smp2pajangan/gambar/refs/heads/main/logosmpn2pjg.png" alt="Logo Sekolah" class="w-14 h-14 rounded-full object-cover"/>
@@ -131,137 +137,298 @@
                     </div>
                 </div>
 
-                <!-- TENGAH -->
+                <!-- TENGAH: Jam & Countdown -->
                 <div class="flex flex-col items-center justify-center text-center z-10">
                     <div id="time" class="text-5xl lg:text-6xl font-black tracking-widest leading-none drop-shadow-md">00:00:00</div>
                     <div id="date" class="text-base text-orange-50 font-medium mt-1 mb-2">Memuat tanggal...</div>
                     
-                    <!-- Countdown Widget -->
-                    <div id="nextBellContainer" class="hidden bg-black/20 backdrop-blur-sm rounded-full px-4 py-1 text-xs font-bold text-orange-100 border border-white/10 flex items-center gap-2">
+                    <div id="nextBellContainer" class="hidden bg-black/20 backdrop-blur-sm rounded-full px-4 py-1 text-xs font-bold text-orange-100 border border-white/10 flex items-center gap-2 animate-fade-in">
                         <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                         <span>BEL BERIKUTNYA:</span>
                         <span id="countdownDisplay" class="font-mono text-white text-sm">--:--</span>
                     </div>
                 </div>
 
-                <!-- KANAN -->
+                <!-- KANAN: Status & Settings -->
                 <div class="flex flex-col items-end justify-center text-right z-10 space-y-3">
                     <div class="text-orange-50 text-sm font-medium">Jadwal Aktif Hari Ini</div>
                     <div id="activeProgram" class="text-right">
                         <span id="activeDayDisplay" class="block text-3xl font-bold leading-none">-</span>
                         <span id="activeTemplateDisplay" class="block text-sm font-medium text-orange-200 mt-1"></span>
                     </div>
-                    <button id="settingBtn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all backdrop-blur-sm border border-white/20 text-sm font-semibold" disabled>
+                    <button id="settingBtn" class="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-all backdrop-blur-sm border border-white/20 text-sm font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transform" disabled>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         <span>Pengaturan</span>
                     </button>
                 </div>
             </header>
             
-            <!-- CONTENT GRID (2-6-4 Layout) -->
-            <main class="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-250px)] overflow-hidden">
-                
-                <!-- KOLOM KIRI (Jadwal) -->
-                <div class="lg:col-span-2 flex flex-col space-y-4 h-full overflow-hidden">
-                    <div class="card p-4 flex flex-col h-1/2 overflow-hidden">
-                        <h3 class="font-bold text-sm mb-2 text-center text-slate-700 border-b pb-2 uppercase">Jadwal Utama</h3>
-                        <select id="templateSelect" class="w-full bg-white border rounded p-1 text-sm mb-2" disabled></select>
-                        <div id="jadwalUtamaContainer" class="grid grid-cols-2 gap-2 mt-2 overflow-y-auto custom-scroll pr-1"></div>
+            <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-0 overflow-hidden">
+                <!-- Kolom Kiri: Jadwal Utama, Khusus, Mendatang -->
+                <div class="lg:col-span-2 flex flex-col gap-3 h-full overflow-hidden">
+                    <div class="card flex flex-col flex-1 min-h-0 overflow-hidden">
+                        <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-xs uppercase tracking-wider">Jadwal Utama</div>
+                        <div class="p-2 flex flex-col h-full overflow-hidden bg-slate-50/50">
+                            <select id="templateSelect" class="w-full bg-white border-slate-300 border rounded p-1.5 text-xs font-semibold mb-2 focus:ring-2 focus:ring-orange-200 outline-none shadow-sm" disabled></select>
+                            <div id="jadwalUtamaContainer" class="flex-1 grid grid-cols-2 gap-1.5 overflow-y-auto custom-scroll pr-1 pb-1"></div>
+                        </div>
                     </div>
-                    <div class="card p-4 flex flex-col h-1/2 overflow-hidden">
-                        <h3 class="font-bold text-sm mb-2 text-center text-slate-700 border-b pb-2 uppercase">Jadwal Khusus</h3>
-                        <div id="jadwalKhususContainer" class="grid grid-cols-2 gap-2 overflow-y-auto custom-scroll pr-1"></div>
+                    <div class="card flex flex-col flex-1 min-h-0 overflow-hidden">
+                        <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-xs uppercase tracking-wider">Jadwal Khusus</div>
+                        <div class="p-2 flex flex-col h-full overflow-hidden bg-slate-50/50">
+                            <div id="jadwalKhususContainer" class="flex-1 grid grid-cols-2 gap-1.5 overflow-y-auto custom-scroll pr-1 pb-1"></div>
+                        </div>
+                    </div>
+                    <!-- WIDGET JADWAL MENDATANG -->
+                    <div class="card flex flex-col flex-1 min-h-0 overflow-hidden">
+                        <div class="bg-white border-b border-slate-200 p-2 text-center text-blue-600 font-bold text-xs uppercase tracking-wider flex justify-center items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Mendatang
+                        </div>
+                        <div class="p-2 flex flex-col h-full overflow-hidden bg-slate-50/50">
+                            <div id="jadwalMendatangWidget" class="flex-1 flex flex-col gap-1.5 overflow-y-auto custom-scroll pr-1 pb-1">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- KOLOM TENGAH (Remote) -->
-                <div id="remoteSection" class="lg:col-span-6 card p-4 flex flex-col h-full overflow-hidden transition-all duration-300">
-                    <h3 class="font-bold text-lg mb-2 text-center text-slate-700 border-b pb-2 flex items-center justify-center gap-2">
+                <!-- Kolom Tengah: Panel Remote -->
+                <div id="remoteSection" class="lg:col-span-6 card flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300">
+                    <div class="bg-white border-b border-slate-200 p-3 text-center text-slate-800 font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2">
                         <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
                         PANEL REMOTE
-                    </h3>
-                    <div id="manualSoundGrid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-1 overflow-y-auto custom-scroll pr-1 flex-grow content-start"></div>
+                    </div>
+                    <div class="p-3 flex-1 overflow-hidden bg-slate-50/50">
+                        <div id="manualSoundGrid" class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-2 overflow-y-auto custom-scroll pr-1 pb-2 h-full"></div>
+                    </div>
                 </div>
                 
-                <!-- KOLOM KANAN (Active & Dual Schedule) -->
-                <div id="activeScheduleSection" class="lg:col-span-4 flex flex-col h-full overflow-hidden transition-all duration-300">
-                    <div id="scheduleGridContainer" class="grid grid-cols-1 gap-4 h-full transition-all duration-300">
-                        <!-- JADWAL 1 -->
-                        <div class="card p-3 flex flex-col h-full overflow-hidden border-l-4 border-l-blue-500" id="scheduleCard1">
-                            <div class="flex justify-between items-center border-b pb-2 mb-2">
-                                <h3 class="font-bold text-sm text-slate-700 uppercase">Jadwal 1</h3>
-                                <button id="btnAddSecondSchedule" class="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-[10px] font-bold">+ DUAL MODE</button>
+                <!-- Kolom Kanan: Daftar Bel Aktif -->
+                <div id="activeScheduleSection" class="lg:col-span-4 flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300">
+                    <div id="scheduleGridContainer" class="grid grid-cols-1 gap-4 h-full min-h-0 transition-all duration-300">
+                        <!-- Jadwal 1 -->
+                        <div class="card flex flex-col h-full min-h-0 overflow-hidden shadow-md">
+                            <div class="flex justify-between items-center p-3 bg-white border-b border-slate-200">
+                                <h3 class="font-extrabold text-sm text-blue-600 uppercase flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-blue-500"></span> JADWAL 1
+                                </h3>
+                                <button id="btnAddSecondSchedule" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-3 py-1 rounded text-[10px] font-bold border border-blue-200 transition-all transform hover:-translate-y-0.5 shadow-sm hover:shadow-md">+ DUAL MODE</button>
                             </div>
-                            <div id="activeScheduleContainer" class="space-y-1 overflow-y-auto flex-grow custom-scroll pr-1 text-[11px]"></div>
+                            <div class="p-2 flex-1 overflow-hidden bg-white">
+                                <div id="activeScheduleContainer" class="space-y-1.5 overflow-y-auto h-full custom-scroll pr-1 pb-2"></div>
+                            </div>
                         </div>
 
-                        <!-- JADWAL 2 (Hidden by default) -->
-                        <div id="secondScheduleCard" class="card p-3 flex flex-col h-full border-l-4 border-l-orange-500 bg-orange-50 hidden shadow-inner overflow-hidden">
-                            <div class="flex justify-between items-center border-b border-orange-200 pb-2 mb-2">
-                                <h3 class="font-bold text-sm text-orange-700 uppercase">Jadwal 2</h3>
-                                <button id="btnRemoveSecondSchedule" class="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px]">TUTUP (X)</button>
+                        <!-- Jadwal 2 -->
+                        <div id="secondScheduleCard" class="card flex flex-col h-full min-h-0 hidden shadow-md overflow-hidden">
+                            <div class="flex justify-between items-center p-3 bg-white border-b border-slate-200">
+                                <h3 class="font-extrabold text-sm text-orange-600 uppercase flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-orange-500"></span> JADWAL 2
+                                </h3>
+                                <button id="btnRemoveSecondSchedule" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1 rounded text-[10px] font-bold transition-all transform hover:-translate-y-0.5 shadow-sm hover:shadow-md">TUTUP</button>
                             </div>
-                            <div class="grid grid-cols-2 gap-1 mb-2">
-                                <select id="secondTemplateSelect" class="text-[10px] p-1 border rounded bg-white shadow-sm"></select>
-                                <select id="secondDaySelect" class="text-[10px] p-1 border rounded bg-white shadow-sm"></select>
+                            <div class="grid grid-cols-2 gap-2 p-2 bg-slate-50 border-b border-slate-200">
+                                <select id="secondTemplateSelect" class="text-xs p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
+                                <select id="secondDaySelect" class="text-xs p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
                             </div>
-                            <div id="secondScheduleContainer" class="space-y-1 overflow-y-auto flex-grow custom-scroll pr-1 text-[11px]"></div>
+                            <div class="p-2 flex-1 overflow-hidden bg-white">
+                                <div id="secondScheduleContainer" class="space-y-1.5 overflow-y-auto h-full custom-scroll pr-1 pb-2"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </main>
         </div>
+    </div>
 
-        <!-- SETTINGS MODAL (NEW SIDEBAR LAYOUT) -->
-        <div id="settingsModal" class="modal-backdrop">
-            <div class="card w-full max-w-5xl h-[85vh] flex overflow-hidden shadow-2xl relative">
-                <!-- Internal Sidebar -->
-                <aside class="w-64 bg-slate-50 border-r flex flex-col flex-shrink-0">
-                    <div class="p-5 border-b bg-gradient-to-r from-orange-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="bg-orange-100 p-2 rounded-full text-orange-600">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                            </div>
-                            <h3 class="font-bold text-slate-800">Pengaturan</h3>
+    <!-- MODAL PENGATURAN KESELURUHAN -->
+    <div id="settingsModal" class="modal-backdrop">
+        <div class="card w-full max-w-5xl h-[85vh] flex overflow-hidden shadow-2xl relative animate-[toast-in_0.3s_ease]">
+            <!-- Sidebar Pengaturan -->
+            <aside class="w-64 bg-slate-50 border-r border-slate-200 flex flex-col flex-shrink-0">
+                <div class="p-5 border-b border-slate-200 bg-white">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-orange-100 p-2 rounded-full text-orange-600">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                         </div>
+                        <h3 class="font-bold text-slate-800">Pengaturan</h3>
                     </div>
-                    <nav class="flex-grow p-3 space-y-1 overflow-y-auto custom-scroll">
-                        <button class="settings-nav-btn active" data-tab="hari">Hari Khusus</button>
-                        <button class="settings-nav-btn" data-tab="jam">Master Jam</button>
-                        <button class="settings-nav-btn" data-tab="bel">Master Bel</button>
-                        <button class="settings-nav-btn" data-tab="jadwal">Atur Jadwal</button>
-                    </nav>
-                </aside>
-
-                <!-- Content Area -->
-                <main class="flex-1 flex flex-col h-full relative bg-white min-w-0">
-                    <button id="closeSettings" class="absolute top-3 right-3 p-2 rounded-full hover:bg-slate-100 text-slate-400 hover:text-red-500 transition-colors z-10">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </div>
+                
+                <nav class="flex-grow p-3 space-y-1 overflow-y-auto custom-scroll">
+                    <button class="settings-nav-btn active" data-tab="hari">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Hari Khusus
+                        </div>
                     </button>
-                    <div class="flex-grow overflow-y-auto p-6 custom-scroll">
-                        <div id="tab-content-hari" class="tab-content"></div>
-                        <div id="tab-content-jam" class="tab-content hidden"></div>
-                        <div id="tab-content-bel" class="tab-content hidden"></div>
-                        <div id="tab-content-jadwal" class="tab-content hidden"></div>
-                    </div>
-                </main>
+                    <button class="settings-nav-btn" data-tab="mendatang">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Jadwal Mendatang
+                        </div>
+                    </button>
+                    <button class="settings-nav-btn" data-tab="jam">
+                         <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Master Jam
+                        </div>
+                    </button>
+                    <button class="settings-nav-btn" data-tab="bel">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                            Master Bel
+                        </div>
+                    </button>
+                    <button class="settings-nav-btn" data-tab="jadwal">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                            Atur Jadwal
+                        </div>
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Area Konten Pengaturan -->
+            <main class="flex-1 flex flex-col h-full relative bg-white min-w-0">
+                <button id="closeSettings" class="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-red-500 transition-all transform hover:-translate-y-0.5 z-10 shadow-sm hover:shadow-md border border-slate-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                
+                <div class="flex-grow overflow-y-auto p-8 custom-scroll">
+                    <div id="tab-content-hari" class="tab-content"></div>
+                    <div id="tab-content-mendatang" class="tab-content hidden"></div>
+                    <div id="tab-content-jam" class="tab-content hidden"></div>
+                    <div id="tab-content-bel" class="tab-content hidden"></div>
+                    <div id="tab-content-jadwal" class="tab-content hidden"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- MODAL AKSI (EDIT/HAPUS) -->
+    <div id="editHariModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">Edit Hari</h3>
+            <form id="editHariForm">
+                <input type="hidden" id="editHariIndex">
+                <input type="text" id="editHariInput" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required>
+                <div class="flex gap-4 mt-6">
+                    <button type="button" class="btn w-full" data-action="close">Batal</button>
+                    <button type="submit" class="btn bg-orange-600 text-white w-full border-0 hover:bg-orange-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="deleteHariModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">Hapus?</h3>
+            <p id="deleteHariText" class="mb-6 text-slate-600"></p>
+            <div class="flex gap-4 mt-6">
+                <button type="button" class="btn w-full" data-action="close">Batal</button>
+                <button type="button" id="confirmDeleteHariBtn" class="btn bg-red-600 text-white w-full border-0 hover:bg-red-700">Hapus</button>
             </div>
         </div>
-        
-        <!-- OTHER MODALS -->
-        <div id="editHariModal" class="modal-backdrop"></div>
-        <div id="deleteHariModal" class="modal-backdrop"></div>
-        <div id="editJamModal" class="modal-backdrop"></div>
-        <div id="deleteJamModal" class="modal-backdrop"></div>
-        <div id="editBelModal" class="modal-backdrop"></div>
-        <div id="confirmPlayModal" class="modal-backdrop">
-            <div class="card w-full max-w-sm p-6 text-center">
-                <h3 class="text-xl font-bold mb-4">Konfirmasi Remote</h3>
-                <p id="confirmPlayText" class="mb-6">Bunyikan <strong id="confirmBellName">...</strong> di sekolah?</p>
-                <div class="flex gap-4 mt-6">
-                    <button type="button" class="btn w-full bg-slate-200" data-action="close">Batal</button>
-                    <button type="button" id="confirmPlayBtn" class="btn bg-blue-600 text-white w-full">Bunyikan</button>
+    </div>
+    
+    <div id="formMendatangModal" class="modal-backdrop">
+        <div class="card w-full max-w-md p-6">
+            <h3 id="formMendatangTitle" class="text-xl font-bold mb-4 text-slate-800">Tambah Jadwal Mendatang</h3>
+            <form id="formMendatang">
+                <input type="hidden" id="mendatangId" value="">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Tanggal Berlaku</label>
+                        <input type="date" id="mendatangDate" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-2 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Aksi Otomatis</label>
+                        <select id="mendatangType" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-2 rounded-md focus:ring-2 focus:ring-orange-300 outline-none">
+                            <option value="khusus">Terapkan Jadwal Khusus (Hanya 1 Hari)</option>
+                            <option value="template">Ubah Template Utama (Permanen dari tgl tsb)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">Pilih Jadwal</label>
+                        <select id="mendatangValue" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-2 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required></select>
+                    </div>
                 </div>
+                <div class="flex gap-4 mt-6">
+                    <button type="button" class="btn w-full" data-action="close">Batal</button>
+                    <button type="submit" class="btn bg-orange-600 text-white w-full border-0 hover:bg-orange-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteMendatangModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">Hapus Jadwal?</h3>
+            <p id="deleteMendatangText" class="mb-6 text-sm text-slate-600"></p>
+            <div class="flex gap-4 mt-6">
+                <button type="button" class="btn w-full" data-action="close">Batal</button>
+                <button type="button" id="confirmDeleteMendatangBtn" class="btn bg-red-600 text-white w-full border-0 hover:bg-red-700">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editJamModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">Edit Jam</h3>
+            <form id="editJamForm">
+                <input type="hidden" id="editJamIndex">
+                <div class="mb-6">
+                    <input type="text" id="editJamInput" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md text-center text-lg font-bold focus:ring-2 focus:ring-orange-300 outline-none" placeholder="00:00" maxlength="5" required autocomplete="off">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" class="btn w-full" data-action="close">Batal</button>
+                    <button type="submit" class="btn bg-orange-600 hover:bg-orange-700 text-white w-full font-bold border-0">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="deleteJamModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold mb-4 text-slate-800">Hapus Jam?</h3>
+            <p id="deleteJamText" class="mb-6 text-slate-600"></p>
+            <div class="flex gap-4 mt-6">
+                <button type="button" class="btn w-full" data-action="close">Batal</button>
+                <button type="button" id="confirmDeleteJamBtn" class="btn bg-red-600 text-white w-full border-0 hover:bg-red-700">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editBelModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6">
+            <h3 class="text-xl font-bold mb-6 text-center text-slate-800">Edit Bel <span id="editBelTitleId"></span></h3>
+            <form id="editBelForm" class="space-y-4">
+                <input type="hidden" id="editBelIndex">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Nama Bel</label>
+                    <input type="text" id="editBelNamaInput" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">File Suara MP3</label>
+                    <select id="editBelFileSelect" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none"></select>
+                </div>
+                <div class="flex gap-4 mt-6 pt-2">
+                    <button type="button" class="btn w-full" data-action="close">Batal</button>
+                    <button type="submit" class="btn bg-orange-600 text-white w-full border-0 hover:bg-orange-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div id="confirmPlayModal" class="modal-backdrop">
+        <div class="card w-full max-w-sm p-6 text-center">
+            <h3 class="text-xl font-bold mb-4">Konfirmasi Remote</h3>
+            <p id="confirmPlayText" class="mb-6">Bunyikan <strong id="confirmBellName">...</strong> di sekolah?</p>
+            <div class="flex gap-4 mt-6">
+                <button type="button" class="btn w-full bg-slate-200" data-action="close">Batal</button>
+                <button type="button" id="confirmPlayBtn" class="btn bg-blue-600 text-white w-full">Bunyikan</button>
             </div>
         </div>
     </div>
@@ -287,6 +454,7 @@
 
         // --- GLOBAL VARIABLES ---
         let masterJam = [], masterBel = [], jadwalKhusus = [], masterJadwal = {};
+        let jadwalMendatang = [];
         let savedTemplate = 'HARI NORMAL';
         let temporaryOverride = { date: null, name: null };
         let secondSchedule = { active: false, template: 'HARI NORMAL', day: 'Senin', isKhusus: false, date: null };
@@ -294,13 +462,28 @@
         let availableSounds = [];
         let nextBellTimeout = null;
         let isDataLoaded = false;
+        let lastCheckedDate = null;
 
         const templates = ['HARI NORMAL', 'BULAN PUASA', 'UJIAN', 'KOKULIKULER', 'LAINNYA'];
         const jadwalUtama = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
         const MODALS = { 
-            settings: 'settingsModal', editHari: 'editHariModal', deleteHari: 'deleteHariModal', 
-            editJam: 'editJamModal', deleteJam: 'deleteJamModal', editBel: 'editBelModal', confirmPlay: 'confirmPlayModal' 
+            settings: 'settingsModal', 
+            editHari: 'editHariModal', 
+            deleteHari: 'deleteHariModal', 
+            formMendatang: 'formMendatangModal', 
+            deleteMendatang: 'deleteMendatangModal', 
+            editJam: 'editJamModal', 
+            deleteJam: 'deleteJamModal', 
+            editBel: 'editBelModal', 
+            confirmPlay: 'confirmPlayModal' 
         };
+
+        // --- PENGAMAN UNTUK ARRAY FIREBASE ---
+        function ensureArray(dataItem) {
+            if (!dataItem) return [];
+            if (Array.isArray(dataItem)) return dataItem.filter(i => i !== null && i !== undefined);
+            return Object.values(dataItem).filter(i => i !== null && i !== undefined);
+        }
 
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -311,11 +494,13 @@
             signInWithEmailAndPassword(auth, hardcodedEmail, hardcodedPassword)
                 .then(() => {
                     document.getElementById('loading-spinner').classList.add('hidden');
-                    document.getElementById('login-page').classList.remove('hidden');
-                    updateConnStatus(true);
+                    document.getElementById('login-page').classList.add('hidden');
+                    document.getElementById('main-app').classList.remove('hidden');
+                    startApp();
                 })
                 .catch(err => {
-                    updateConnStatus(false);
+                    document.getElementById('loading-spinner').classList.add('hidden');
+                    document.getElementById('login-page').classList.remove('hidden');
                     console.error("Auth fail:", err);
                 });
 
@@ -355,12 +540,6 @@
             setupEventListeners();
         }
 
-        function updateConnStatus(online) {
-            // Indikator koneksi firebase web dihapus agar tidak membingungkan pengguna.
-            // Hanya digunakan log internal jika diperlukan
-            if(!online) console.log("Terputus dari server database.");
-        }
-
         function listenToDesktopStatus() {
             onValue(ref(db, 'desktopStatus'), snap => {
                 if(snap.exists()) {
@@ -381,15 +560,23 @@
 
         function listenToConfig() {
             onValue(ref(db, 'schoolBellConfig'), snap => {
-                const d = snap.val() || {};
-                masterJam = d.masterJam || [];
-                masterBel = d.masterBel || Array.from({length:60},(_,i)=>({id:i+1,nama:`Bel ${i+1}`,file:''}));
-                jadwalKhusus = d.jadwalKhusus || [];
-                masterJadwal = d.masterJadwal || {};
-                savedTemplate = d.savedTemplate || 'HARI NORMAL';
-                manualDayOverride = d.manualDayOverride;
-                temporaryOverride = d.temporaryOverride || {date:null,name:null};
-                secondSchedule = d.secondSchedule || {active:false,template:'HARI NORMAL',day:'Senin',isKhusus:false,date:null};
+                const data = snap.val() || {};
+                
+                // Parsing aman
+                masterJam = ensureArray(data.masterJam);
+                if (data.masterBel) {
+                    masterBel = ensureArray(data.masterBel);
+                } else {
+                    masterBel = Array.from({ length: 60 }, (_, i) => ({ id: i + 1, nama: `Bel ${i + 1}`, file: '' }));
+                }
+                jadwalKhusus = ensureArray(data.jadwalKhusus);
+                jadwalMendatang = ensureArray(data.jadwalMendatang);
+                masterJadwal = data.masterJadwal || {};
+                
+                savedTemplate = data.savedTemplate || 'HARI NORMAL';
+                manualDayOverride = data.manualDayOverride || null;
+                temporaryOverride = data.temporaryOverride || {date:null,name:null};
+                secondSchedule = data.secondSchedule || {active:false,template:'HARI NORMAL',day:'Senin',isKhusus:false,date:null};
 
                 // Validasi Tanggal Hari Baru
                 const today = new Date().toISOString().split('T')[0];
@@ -401,6 +588,8 @@
                 templates.forEach(t => { if(!masterJadwal[t]) masterJadwal[t]={}; jadwalUtama.forEach(day => { if(!masterJadwal[t][day]) masterJadwal[t][day]={}; }); });
                 jadwalKhusus.forEach(k => { if(!k.jadwal) k.jadwal={}; });
 
+                checkJadwalMendatang(today);
+
                 if(!isDataLoaded) {
                     isDataLoaded = true;
                     document.getElementById('settingBtn').disabled = false;
@@ -408,7 +597,7 @@
                     scheduleNextBell();
                 }
                 renderAll();
-                if(document.querySelector('#jadwalTable tbody')) renderJadwalTable(); // Refresh setting table if open
+                if(document.querySelector('#jadwalTable tbody')) renderJadwalTable(); 
             });
         }
 
@@ -421,18 +610,57 @@
 
         async function saveConfig() {
             if(!auth.currentUser) return;
-            const data = { masterJam, masterBel, jadwalKhusus, masterJadwal, savedTemplate, manualDayOverride, temporaryOverride, secondSchedule, lastUpdated: new Date().toISOString() };
+            const data = { masterJam, masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, savedTemplate, manualDayOverride, temporaryOverride, secondSchedule, lastUpdated: new Date().toISOString() };
             await set(ref(db, 'schoolBellConfig'), data);
+        }
+        
+        function checkJadwalMendatang(todayStr) {
+            if (lastCheckedDate === todayStr) return;
+            lastCheckedDate = todayStr;
+            
+            let configChanged = false;
+            const todaysEvents = jadwalMendatang.filter(j => j.date === todayStr);
+
+            todaysEvents.forEach(evt => {
+                if (evt.type === 'template' && savedTemplate !== evt.value) {
+                    savedTemplate = evt.value;
+                    configChanged = true;
+                } else if (evt.type === 'khusus') {
+                    if (temporaryOverride.date !== todayStr || temporaryOverride.name !== evt.value) {
+                        temporaryOverride = { date: todayStr, name: evt.value };
+                        manualDayOverride = null;
+                        configChanged = true;
+                    }
+                }
+            });
+
+            if (configChanged) {
+                saveConfig();
+            }
         }
 
         function updateTime() {
             const now = new Date();
+            const todayStr = getTodayDateString();
+            
             document.getElementById('time').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
             document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             
+            checkJadwalMendatang(todayStr);
             updateCountdown(now);
+            
             renderActiveSchedule();
-            renderSecondSchedule();
+            if (secondSchedule && secondSchedule.active) {
+                renderSecondSchedule();
+            }
+        }
+
+        function getTodayDateString() { 
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
         // --- NEW COUNTDOWN LOGIC ---
@@ -466,7 +694,6 @@
                 const totalSecondsTarget = nextJam.totalMin * 60;
                 let diffSeconds = totalSecondsTarget - totalSecondsNow;
                 
-                // Cegah negatif
                 if(diffSeconds < 0) diffSeconds = 0;
 
                 const mm = Math.floor(diffSeconds / 60);
@@ -474,7 +701,6 @@
                 
                 display.textContent = `${mm.toString().padStart(2, '0')}:${ss.toString().padStart(2, '0')}`;
                 
-                // Merah jika kurang dari 1 menit
                 if (mm === 0) {
                     container.classList.add('bg-red-900/40', 'border-red-500/50');
                     display.classList.add('text-red-200');
@@ -527,12 +753,13 @@
         }
 
         function playSimulation(bel, jam) {
-            const item = document.querySelector(`[data-jam="${jam}"]`);
-            if(item) {
+            // Ini untuk memberikan efek kelap-kelip visual pada web remote saat bel berbunyi
+            const items = document.querySelectorAll(`[data-jam="${jam}"]`);
+            items.forEach(item => {
                 item.classList.add('bell-ringing');
                 setTimeout(()=>item.classList.remove('bell-ringing'), 1500);
-            }
-            showToast(`Bel ${jam} berbunyi di Server`, 'info');
+            });
+            showToast(`Perintah Bel [${jam}] dijalankan di Server.`, 'info');
         }
 
         function renderAll() {
@@ -540,12 +767,15 @@
             renderJadwalKhususButtons();
             renderManualSoundButtons();
             renderTemplateSelect();
+            
             const { displayName, isOverride, effectiveDayName } = getActiveInfo(); 
             document.getElementById('activeDayDisplay').textContent = isOverride ? displayName : effectiveDayName.toUpperCase(); 
             document.getElementById('activeTemplateDisplay').textContent = `(${isOverride ? 'JADWAL KHUSUS' : displayName})`;
+            
             renderActiveSchedule();
             renderSecondSchedule();
             updateSecondScheduleSelectors();
+            renderJadwalMendatangWidget();
         }
 
         // --- RENDERERS ---
@@ -554,7 +784,7 @@
             const { effectiveDayName, isOverride } = getActiveInfo(); 
             jadwalUtama.forEach(d => { 
                 const b = document.createElement('button'); 
-                b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal text-xs'; 
+                b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal text-sm font-bold p-1.5'; 
                 b.textContent = d; 
                 if (d === effectiveDayName && !isOverride) b.classList.add('active'); 
                 c.appendChild(b); 
@@ -563,23 +793,55 @@
         function renderJadwalKhususButtons() { 
             const c = document.getElementById('jadwalKhususContainer'); c.innerHTML = ''; 
             const t = new Date().toISOString().split('T')[0]; 
-            if (!jadwalKhusus || jadwalKhusus.length === 0) { c.innerHTML = `<p class="text-slate-400 col-span-full text-center text-xs">Kosong.</p>`; } 
+            if (!jadwalKhusus || jadwalKhusus.length === 0) { c.innerHTML = `<p class="text-slate-400 col-span-full text-center text-xs mt-2">Kosong.</p>`; } 
             else { 
                 jadwalKhusus.forEach(i => { 
                     const b = document.createElement('button'); 
-                    b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal text-xs'; 
+                    b.className = 'btn btn-day flex items-center justify-center text-center h-full whitespace-normal text-sm font-bold p-1.5'; 
                     b.textContent = i.nama; b.dataset.nama = i.nama; 
                     if (temporaryOverride.date === t && temporaryOverride.name === i.nama) b.classList.add('active'); 
                     c.appendChild(b); 
                 }); 
             } 
         }
+        
+        function renderJadwalMendatangWidget() {
+            const container = document.getElementById('jadwalMendatangWidget');
+            const todayStr = getTodayDateString();
+            
+            const upcoming = jadwalMendatang.filter(j => j.date >= todayStr).sort((a,b) => a.date.localeCompare(b.date));
+            
+            if (upcoming.length === 0) {
+                container.innerHTML = `<p class="text-slate-400 text-center italic mt-2 text-xs">Tidak ada jadwal.</p>`;
+                return;
+            }
+
+            container.innerHTML = upcoming.map(j => {
+                const dateObj = new Date(j.date);
+                const icon = j.type === 'khusus' ? '★' : '🔄';
+                const label = j.type === 'khusus' ? 'Khusus' : 'Template';
+                const isToday = j.date === todayStr;
+                
+                return `
+                <div class="flex justify-between items-center p-2 mb-1.5 rounded-md border bg-white border-slate-200 shadow-sm ${isToday ? 'border-blue-400 ring-1 ring-blue-100' : ''}">
+                    <div class="flex flex-col items-center justify-center w-12 flex-shrink-0 border-r border-slate-100 pr-2">
+                        <span class="font-black text-lg text-blue-600 leading-none">${dateObj.getDate()}</span>
+                        <span class="text-[10px] font-bold uppercase text-slate-500 mt-0.5">${dateObj.toLocaleDateString('id-ID', {month:'short'})}</span>
+                    </div>
+                    <div class="flex flex-col flex-grow ml-3 leading-tight overflow-hidden">
+                        <span class="font-bold text-sm text-slate-700 truncate w-full" title="${j.value}">${j.value}</span>
+                        <span class="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">${icon} ${label}</span>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
         function renderManualSoundButtons() { 
             const g = document.getElementById('manualSoundGrid'); g.innerHTML = ''; 
             masterBel.forEach((b, i) => { 
                 const btn = document.createElement('button'); 
                 const hasFile = b.file && b.file.trim() !== "";
-                btn.className = 'btn flex items-center justify-center text-center h-12 text-[11px] font-bold leading-tight p-1 whitespace-normal bg-white border-slate-200 hover:bg-orange-50 hover:border-orange-300 shadow-sm transition-all'; 
+                btn.className = 'btn flex items-center justify-center text-center h-14 text-sm font-bold leading-tight p-1 whitespace-normal shadow-sm transition-all'; 
                 btn.textContent = b.nama; btn.dataset.belIndex = i; 
                 if (!hasFile) btn.disabled = true; 
                 g.appendChild(btn); 
@@ -592,23 +854,31 @@
         function renderActiveSchedule() { 
             const c = document.getElementById('activeScheduleContainer'); 
             const { schedule } = getActiveInfo(); 
-            if (!schedule || Object.keys(schedule).length === 0) { c.innerHTML = `<p class="text-slate-400 text-center p-2 text-xs">Tidak ada jadwal.</p>`; return; } 
+            
+            if (!schedule || Object.keys(schedule).length === 0) { 
+                c.innerHTML = `<p class="text-slate-400 text-center p-2 text-xs">Tidak ada jadwal.</p>`; return; 
+            } 
+            
             const sorted = Object.keys(schedule).filter(j => schedule[j] > 0).sort(); 
             const now = new Date(); const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`; 
+            
             c.innerHTML = sorted.map((jam, i) => { 
                 const bel = masterBel.find(b => b.id == schedule[jam]); 
-                const isPast = jam <= currentTime;
                 
-                // Add highlight logic
-                let itemClass = isPast ? 'past-schedule-item' : 'bg-slate-50';
-                if(jam === currentTime) itemClass = 'current-schedule-item pulse-active';
+                let bgClass = 'schedule-item';
+                if (jam < currentTime) bgClass = 'past-schedule-item'; 
+                else if (jam === currentTime) bgClass = 'current-schedule-item pulse-active';
 
-                return `<div class="flex justify-between items-center p-2 rounded-md border shadow-sm ${itemClass}" data-jam="${jam}">
-                    <div class="flex items-center flex-shrink-0"> <span class="font-mono text-slate-400 text-[13px] mr-2">[${i + 1}]</span> <span class="font-bold text-[13px]">${jam}</span> </div>
-                    <span class="text-[10px] bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded-md text-right whitespace-normal leading-tight max-w-[120px] ml-2 flex-grow flex justify-end items-center h-full min-h-[24px]" title="${bel?.nama}">${bel?.nama}</span>
+                return `<div class="flex justify-between items-center p-2 mb-1.5 rounded-md border shadow-sm transition-all duration-300 ${bgClass}" data-jam="${jam}">
+                    <div class="flex items-center flex-shrink-0"> 
+                        <span class="font-mono text-[13px] mr-2 opacity-60 font-semibold index-text">[${i + 1}]</span> 
+                        <span class="font-bold text-[14px] text-slate-700 time-text">${jam}</span> 
+                    </div>
+                    <span class="text-xs font-bold px-3 py-1 rounded-md text-right whitespace-normal leading-tight max-w-[140px] ml-2 flex-grow flex justify-end items-center h-full min-h-[28px] badge-text" title="${bel?.nama}">${bel?.nama}</span>
                 </div>`;
             }).join('');
         }
+        
         function renderSecondSchedule() {
             const card2 = document.getElementById('secondScheduleCard');
             const remoteSection = document.getElementById('remoteSection');
@@ -619,30 +889,39 @@
             
             if (!secondSchedule.active) {
                 card2.classList.add('hidden'); btnAdd.classList.remove('hidden');
-                remoteSection.className = "lg:col-span-8 card p-4 flex flex-col h-full overflow-hidden transition-all duration-300";
-                scheduleSection.className = "lg:col-span-2 flex flex-col h-full overflow-hidden transition-all duration-300";
-                gridContainer.className = "grid grid-cols-1 gap-4 h-full";
-                manualGrid.classList.remove('grid-cols-4','sm:grid-cols-5','md:grid-cols-6'); manualGrid.classList.add('grid-cols-6');
+                remoteSection.className = "lg:col-span-8 card flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300";
+                scheduleSection.className = "lg:col-span-2 flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300";
+                gridContainer.className = "grid grid-cols-1 gap-4 h-full min-h-0 transition-all duration-300";
+                manualGrid.classList.remove('grid-cols-4'); manualGrid.classList.add('grid-cols-6');
                 return;
             }
             card2.classList.remove('hidden'); btnAdd.classList.add('hidden');
-            remoteSection.className = "lg:col-span-6 card p-4 flex flex-col h-full overflow-hidden transition-all duration-300";
-            scheduleSection.className = "lg:col-span-4 flex flex-col h-full overflow-hidden transition-all duration-300";
-            gridContainer.className = "grid grid-cols-2 gap-2 h-full";
-            manualGrid.classList.remove('grid-cols-6'); manualGrid.classList.add('grid-cols-4','sm:grid-cols-5','md:grid-cols-6');
+            remoteSection.className = "lg:col-span-6 card flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300";
+            scheduleSection.className = "lg:col-span-4 flex flex-col h-full min-h-0 overflow-hidden transition-all duration-300";
+            gridContainer.className = "grid grid-cols-2 gap-2 h-full min-h-0 transition-all duration-300";
+            manualGrid.classList.remove('grid-cols-6'); manualGrid.classList.add('grid-cols-4');
             
             let s = (secondSchedule.isKhusus) ? (jadwalKhusus.find(x => x.nama === secondSchedule.day)?.jadwal || {}) : (masterJadwal[secondSchedule.template]?.[secondSchedule.day] || {});
             const sorted = Object.keys(s).filter(j => s[j] > 0).sort();
             const now = new Date(); const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            
             document.getElementById('secondScheduleContainer').innerHTML = sorted.map((jam, i) => {
                 const bel = masterBel.find(b => b.id == s[jam]);
-                const isPast = jam <= currentTime;
-                return `<div class="flex justify-between items-center p-2 rounded-md border shadow-sm ${isPast ? 'past-schedule-item' : 'bg-slate-50'}">
-                    <div class="flex items-center flex-shrink-0"> <span class="font-mono text-slate-400 text-[13px] mr-2">[${i + 1}]</span> <span class="font-bold text-[13px]">${jam}</span> </div>
-                    <span class="text-[10px] bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded-md text-right whitespace-normal leading-tight max-w-[120px] ml-2 flex-grow flex justify-end items-center h-full min-h-[24px]" title="${bel?.nama}">${bel?.nama}</span>
+                
+                let bgClass = 'schedule-item';
+                if (jam < currentTime) bgClass = 'past-schedule-item'; 
+                else if (jam === currentTime) bgClass = 'current-schedule-item pulse-active';
+
+                return `<div class="flex justify-between items-center p-2 mb-1.5 rounded-md border shadow-sm transition-all duration-300 ${bgClass}" data-jam="${jam}">
+                    <div class="flex items-center flex-shrink-0"> 
+                        <span class="font-mono text-[13px] mr-2 opacity-60 font-semibold index-text">[${i + 1}]</span> 
+                        <span class="font-bold text-[14px] text-slate-700 time-text">${jam}</span> 
+                    </div>
+                    <span class="text-xs font-bold px-3 py-1 rounded-md text-right whitespace-normal leading-tight max-w-[140px] ml-2 flex-grow flex justify-end items-center h-full min-h-[28px] badge-text" title="${bel?.nama}">${bel?.nama}</span>
                 </div>`;
             }).join('') || '<p class="text-center text-slate-400 text-[10px] mt-4 italic">Kosong</p>';
         }
+        
         function updateSecondScheduleSelectors() {
             const tSelect = document.getElementById('secondTemplateSelect'); const dSelect = document.getElementById('secondDaySelect');
             if(!tSelect || !dSelect) return;
@@ -653,8 +932,9 @@
 
         // --- EVENT HANDLERS ---
         function setupEventListeners() {
-            document.getElementById('settingBtn').addEventListener('click', () => { renderSettingsModals(); populateSettingsDropdowns(); showModal('settings'); });
+            document.getElementById('settingBtn').addEventListener('click', () => { renderSettingsContent(); populateSettingsDropdowns(); showModal('settings'); });
             document.getElementById('closeSettings').addEventListener('click', () => { hideModal('settings'); renderAll(); });
+            
             document.body.addEventListener('click', (e) => { 
                 if(e.target.matches('[data-action="close"]')) hideModal(e.target.closest('.modal-backdrop').id.replace('Modal','')); 
                 
@@ -706,6 +986,21 @@
             document.getElementById('secondDaySelect').addEventListener('change', (e) => { secondSchedule.day = e.target.value; secondSchedule.date = new Date().toISOString().split('T')[0]; renderAll(); saveConfig(); });
         }
 
+        function updateMendatangOptions() {
+            const type = document.getElementById('mendatangType').value;
+            const valSelect = document.getElementById('mendatangValue');
+            
+            if (type === 'template') {
+                valSelect.innerHTML = templates.map(t => `<option value="${t}">${t}</option>`).join('');
+            } else {
+                if(jadwalKhusus.length === 0) {
+                    valSelect.innerHTML = `<option value="">-- Belum Ada Jadwal Khusus --</option>`;
+                } else {
+                    valSelect.innerHTML = jadwalKhusus.map(k => `<option value="${k.nama}">${k.nama}</option>`).join('');
+                }
+            }
+        }
+
         async function triggerRemote(bel) {
             if(!bel || !bel.id) return;
             await set(ref(db, 'remotePlayTrigger'), { belId: bel.id, timestamp: Date.now() });
@@ -713,39 +1008,188 @@
         }
 
         // --- SETTINGS LOGIC (NEW STICKY ORANGE STYLE) ---
-        function renderSettingsModals() {
-            document.getElementById('tab-content-hari').innerHTML = `
-                <h4 class="text-lg font-semibold mb-2">Jadwal Khusus</h4>
-                <form id="addHariForm" class="sticky top-0 z-10 shadow-md flex items-center gap-4 mb-6 bg-orange-200 p-4 rounded-lg border">
-                    <input type="text" id="hariInput" class="bg-white border rounded-md p-2 text-base flex-grow" placeholder="Nama Jadwal" required>
-                    <button type="submit" class="btn bg-orange-600 text-white">Tambah</button>
-                </form>
-                <div id="hariListContainer" class="space-y-2"></div>`;
+        function renderSettingsContent() {
             
+            // TAB: HARI KHUSUS
+            document.getElementById('tab-content-hari').innerHTML = `
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Jadwal Khusus</h4>
+                    <form id="addHariForm" class="shadow-sm flex items-center gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <input type="text" id="hariInput" class="bg-white border border-slate-300 rounded-md p-2 text-base flex-grow outline-none focus:ring-2 focus:ring-orange-200" placeholder="Nama Jadwal" required>
+                        <button type="submit" class="btn bg-orange-600 hover:bg-orange-700 text-white border-0">Tambah</button>
+                    </form>
+                </div>
+                <div id="hariListContainer" class="space-y-2"></div>`;
+            renderHariList();
+            document.getElementById('addHariForm').onsubmit = (e) => { e.preventDefault(); const v = document.getElementById('hariInput').value; if(v){ jadwalKhusus.push({nama:v, jadwal:{}}); saveConfig(); renderHariList(); e.target.reset(); }};
+            
+            document.getElementById('hariListContainer').addEventListener('click', e => {
+                const target = e.target.closest('button');
+                if (!target) return;
+                const idx = target.dataset.index;
+                
+                if (target.classList.contains('edit-hari-btn')) {
+                    document.getElementById('editHariIndex').value = idx;
+                    document.getElementById('editHariInput').value = jadwalKhusus[idx].nama;
+                    showModal('editHari');
+                } else if (target.classList.contains('delete-hari-btn')) {
+                    document.getElementById('deleteHariText').textContent = `Hapus jadwal khusus "${jadwalKhusus[idx].nama}"?`;
+                    document.getElementById('confirmDeleteHariBtn').dataset.deleteIndex = idx;
+                    showModal('deleteHari');
+                }
+            });
+
+            // TAB: JADWAL MENDATANG
+            document.getElementById('tab-content-mendatang').innerHTML = `
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Daftar Jadwal Mendatang</h4>
+                    <button id="btnTambahMendatang" class="btn bg-orange-600 hover:bg-orange-700 text-white shadow-md flex gap-2 items-center w-max border-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Tambah Jadwal
+                    </button>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800 mb-6">
+                    Jadwal yang diatur di sini akan otomatis aktif pada tanggal yang ditentukan.
+                </div>
+                <div id="mendatangListContainer" class="space-y-3"></div>
+            `;
+            renderJadwalMendatangList();
+            
+            document.getElementById('btnTambahMendatang').addEventListener('click', () => {
+                document.getElementById('formMendatangTitle').textContent = "Tambah Jadwal Mendatang";
+                document.getElementById('formMendatang').reset();
+                document.getElementById('mendatangId').value = "";
+                document.getElementById('mendatangDate').min = getTodayDateString(); 
+                updateMendatangOptions();
+                showModal('formMendatang');
+            });
+            document.getElementById('mendatangType').addEventListener('change', updateMendatangOptions);
+            
+            document.getElementById('formMendatang').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('mendatangId').value;
+                const date = document.getElementById('mendatangDate').value;
+                const type = document.getElementById('mendatangType').value;
+                const value = document.getElementById('mendatangValue').value;
+
+                if(!value) { showToast("Pilih jadwal/template terlebih dahulu!", "error"); return; }
+
+                if (id) {
+                    const idx = jadwalMendatang.findIndex(j => j.id === id);
+                    if (idx > -1) {
+                        jadwalMendatang[idx] = { id, date, type, value };
+                    }
+                } else {
+                    jadwalMendatang.push({ id: Date.now().toString(), date, type, value });
+                }
+
+                await saveConfig();
+                renderJadwalMendatangList(); 
+                renderAll(); 
+                hideModal('formMendatang');
+                showToast("Jadwal mendatang disimpan!", "success");
+            });
+
+            document.getElementById('mendatangListContainer').addEventListener('click', e => {
+                const target = e.target.closest('button');
+                if (!target) return;
+                const id = target.dataset.id;
+                const item = jadwalMendatang.find(j => j.id === id);
+                if(!item) return;
+
+                if (target.classList.contains('edit-mendatang-btn')) {
+                    document.getElementById('formMendatangTitle').textContent = "Edit Jadwal Mendatang";
+                    document.getElementById('mendatangId').value = item.id;
+                    document.getElementById('mendatangDate').value = item.date;
+                    document.getElementById('mendatangType').value = item.type;
+                    updateMendatangOptions();
+                    document.getElementById('mendatangValue').value = item.value;
+                    showModal('formMendatang');
+                } else if (target.classList.contains('delete-mendatang-btn')) {
+                    const dateObj = new Date(item.date);
+                    document.getElementById('deleteMendatangText').innerHTML = `Hapus otomatisasi <strong>${item.value}</strong> pada tanggal ${dateObj.toLocaleDateString('id-ID')}?`;
+                    document.getElementById('confirmDeleteMendatangBtn').dataset.id = id;
+                    showModal('deleteMendatang');
+                }
+            });
+
+            document.getElementById('confirmDeleteMendatangBtn').addEventListener('click', async (e) => {
+                const id = e.currentTarget.dataset.id;
+                jadwalMendatang = jadwalMendatang.filter(j => j.id !== id);
+                await saveConfig();
+                renderJadwalMendatangList();
+                renderAll();
+                hideModal('deleteMendatang');
+                showToast("Jadwal mendatang dihapus", "success");
+            });
+
+
+            // TAB: MASTER JAM
             document.getElementById('tab-content-jam').innerHTML = `
-                <h4 class="text-lg font-semibold mb-2">Master Jam</h4>
-                <form id="addJamForm" class="sticky top-0 z-10 shadow-md flex items-center gap-3 mb-6 bg-orange-200 p-4 rounded-lg border">
-                    <input type="text" id="jamInput" class="bg-white border rounded-md p-2 text-base w-32 text-center" placeholder="00:00" maxlength="5" required autocomplete="off">
-                    <button type="submit" class="btn bg-orange-600 text-white font-bold px-6">TAMBAH</button>
-                </form>
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Master Jam</h4>
+                    <form id="addJamForm" class="shadow-sm flex items-center gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <input type="text" id="jamInput" class="bg-white border border-slate-300 rounded-md p-2 text-base w-32 text-center outline-none focus:ring-2 focus:ring-orange-200" placeholder="00:00" maxlength="5" required autocomplete="off">
+                        <button type="submit" class="btn bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 shadow-md border-0 transition-transform hover:scale-105">TAMBAH</button>
+                    </form>
+                </div>
                 <div id="jamListContainer" class="space-y-2"></div>`;
                 
-            document.getElementById('tab-content-bel').innerHTML = `<h4 class="text-lg font-semibold mb-2">Master Bel</h4><div class="bg-orange-50 border p-3 rounded-lg text-sm mb-4">Atur nama bel dan file suara yang akan diputar di Server.</div><div id="belListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>`;
-            document.getElementById('tab-content-jadwal').innerHTML = `<h4 class="text-lg font-semibold mb-2">Atur Jadwal</h4><div class="sticky top-0 z-20 shadow-md flex flex-col sm:flex-row gap-4 mb-6 bg-orange-200 p-4 rounded-lg border"><select id="jadwalTemplateSelect" class="w-full bg-white border p-2 rounded-md"></select><select id="jadwalDaySelect" class="w-full bg-white border p-2 rounded-md"></select></div><div class="overflow-x-auto"><table id="jadwalTable" class="w-full"><thead><tr class="border-b"><th class="p-3 text-left">Jam</th><th class="p-3 text-left">Bel</th></tr></thead><tbody></tbody></table></div>`;
+            renderJamList();
+            applyTimeInputMask('jamInput');
             
-            // Re-attach handlers & initial render
-            renderHariList(); renderJamList(); renderBelList(); applyTimeInputMask('jamInput');
-            
-            // Event Listeners Forms
-            document.getElementById('addHariForm').onsubmit = (e) => { e.preventDefault(); const v = document.getElementById('hariInput').value; if(v){ jadwalKhusus.push({nama:v, jadwal:{}}); saveConfig(); renderHariList(); e.target.reset(); }};
             document.getElementById('addJamForm').onsubmit = (e) => { 
                 e.preventDefault(); 
                 let v = document.getElementById('jamInput').value.trim();
                 // Basic format check
                 if(v.length === 4 && !v.includes(':')) v = v.substring(0,2) + ":" + v.substring(2);
                 
-                if(!masterJam.includes(v)){ masterJam.push(v); masterJam.sort(); saveConfig(); renderJamList(); e.target.reset(); document.getElementById('jamInput').value=''; }
+                if(!masterJam.includes(v)){ masterJam.push(v); masterJam.sort(); saveConfig(); renderJamList(); renderJadwalTable(); e.target.reset(); document.getElementById('jamInput').value=''; }
             };
+            
+            document.getElementById('jamListContainer').addEventListener('click', e => { 
+                const target = e.target.closest('button'); if(!target) return;
+                const j = target.dataset.jamValue; const idx = masterJam.indexOf(j);
+                if (target.classList.contains('delete-jam-btn') && idx > -1) { 
+                    document.getElementById('deleteJamText').innerHTML = `Hapus jam <strong>${j}</strong> dari daftar?`; 
+                    document.getElementById('confirmDeleteJamBtn').dataset.jamValue = j; 
+                    showModal('deleteJam'); 
+                } else if (target.classList.contains('edit-jam-btn') && idx > -1) { 
+                    document.getElementById('editJamIndex').value = idx; 
+                    document.getElementById('editJamInput').value = j; 
+                    showModal('editJam'); 
+                }
+            });
+
+
+            // TAB: MASTER BEL
+            document.getElementById('tab-content-bel').innerHTML = `
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Master Bel</h4>
+                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg text-sm text-blue-800">
+                        Atur nama bel dan file suara yang akan diputar di Server Sekolah.
+                    </div>
+                </div>
+                <div id="belListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>`;
+            renderBelList();
+            document.getElementById('belListContainer').addEventListener('click', e => { const target = e.target.closest('.edit-bel-btn'); if (target) { const index = parseInt(target.dataset.index); const bel = masterBel[index]; document.getElementById('editBelTitleId').textContent = bel.id; document.getElementById('editBelIndex').value = index; document.getElementById('editBelNamaInput').value = bel.nama; document.getElementById('editBelFileSelect').innerHTML = availableSounds.map(s => `<option value="${s.value}" ${s.value === bel.file ? 'selected' : ''}>${s.text}</option>`).join(''); showModal('editBel'); } });
+
+
+            // TAB: ATUR JADWAL
+            document.getElementById('tab-content-jadwal').innerHTML = `
+                <div class="mb-6">
+                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Atur Jadwal</h4>
+                    <div class="shadow-sm flex flex-col gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <select id="jadwalTemplateSelect" class="w-full bg-white border border-slate-300 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200"></select>
+                        <select id="jadwalDaySelect" class="w-full bg-white border border-slate-300 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200"></select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto text-slate-800">
+                    <table id="jadwalTable" class="w-full">
+                        <thead><tr class="border-b border-slate-200"><th class="p-3 text-left">Jam</th><th class="p-3 text-left">Bel</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>`;
             document.querySelector('#jadwalTable tbody').onchange = (e) => { 
                 if(e.target.tagName==='SELECT') {
                     const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value;
@@ -755,25 +1199,26 @@
                         if(b===0) delete s[j]; else s[j]=b; 
                         saveConfig(); 
                         
-                        // PERBAIKAN: Manipulasi DOM lokal secara instan, tidak perlu render ulang seluruh tabel!
+                        // Manipulasi DOM lokal secara instan, tidak perlu render ulang seluruh tabel!
                         const tr = e.target.closest('tr');
+                        const sel = e.target;
+                        
                         if(b === 0) {
-                            tr.classList.remove('row-filled');
+                            tr.className = 'border-b border-slate-200';
+                            sel.className = 'w-full p-2.5 rounded-md outline-none border border-slate-300 bg-slate-50 text-slate-500 shadow-sm cursor-pointer transition-all hover:bg-white hover:shadow-md focus:ring-2 focus:ring-slate-400';
                         } else {
-                            tr.classList.add('row-filled');
+                            tr.className = 'border-b border-slate-200 bg-orange-50/50';
+                            sel.className = 'w-full p-2.5 rounded-md outline-none border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold shadow-md cursor-pointer transition-all focus:ring-2 focus:ring-orange-500 hover:shadow-lg';
                         }
                     }
                 }
             };
             
-            // Edit/Delete Modals Setup
-            document.getElementById('editHariModal').innerHTML = `<div class="card w-full max-w-sm p-6"><h3 class="text-xl font-bold mb-4">Edit Hari</h3><form id="editHariForm"><input type="hidden" id="editHariIndex"><input type="text" id="editHariInput" class="w-full bg-slate-100 p-3 rounded-md" required><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="btn bg-orange-600 text-white w-full">Simpan</button></div></form></div>`;
+            // Event Listener Modal Form Edit/Delete (Modals di luar tab)
             document.getElementById('editHariForm').onsubmit = e => { e.preventDefault(); const i = document.getElementById('editHariIndex').value; jadwalKhusus[i].nama = document.getElementById('editHariInput').value; saveConfig(); renderHariList(); hideModal('editHari'); };
             
-            document.getElementById('deleteHariModal').innerHTML = `<div class="card w-full max-w-sm p-6 text-center"><h3 class="text-xl font-bold mb-4">Hapus?</h3><p id="deleteHariText" class="mb-6"></p><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="button" id="confirmDeleteHariBtn" class="btn bg-red-600 text-white w-full">Hapus</button></div></div>`;
-            document.getElementById('confirmDeleteHariBtn').onclick = e => { jadwalKhusus.splice(e.target.dataset.index, 1); saveConfig(); renderHariList(); hideModal('deleteHari'); };
+            document.getElementById('confirmDeleteHariBtn').onclick = e => { jadwalKhusus.splice(e.target.dataset.deleteIndex, 1); saveConfig(); renderHariList(); hideModal('deleteHari'); };
 
-            document.getElementById('editJamModal').innerHTML = `<div class="card w-full max-w-sm p-6 text-center"><h3 class="text-xl font-bold mb-4">Edit Jam</h3><form id="editJamForm"><input type="hidden" id="editJamIndex"><div class="flex justify-center mb-6"><input type="text" id="editJamInput" class="bg-slate-100 p-3 rounded-md time-mask-input text-center text-lg" placeholder="00:00" required></div><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="btn bg-orange-600 text-white w-full">Simpan</button></div></form></div>`;
             applyTimeInputMask('editJamInput');
             document.getElementById('editJamForm').onsubmit = e => { 
                 e.preventDefault(); const i = document.getElementById('editJamIndex').value; const old = masterJam[i]; const n = document.getElementById('editJamInput').value;
@@ -781,68 +1226,121 @@
                     masterJam[i] = n; 
                     Object.values(masterJadwal).forEach(t=>Object.values(t).forEach(d=>{ if(d[old]){ d[n]=d[old]; delete d[old]; }}));
                     jadwalKhusus.forEach(k=>{ if(k.jadwal[old]){ k.jadwal[n]=k.jadwal[old]; delete k.jadwal[old]; }});
-                    saveConfig(); renderJamList(); hideModal('editJam'); 
+                    saveConfig(); renderJamList(); renderJadwalTable(); hideModal('editJam'); 
                 }
             };
 
-            document.getElementById('deleteJamModal').innerHTML = `<div class="card w-full max-w-sm p-6 text-center"><h3 class="text-xl font-bold mb-4">Hapus Jam?</h3><p id="deleteJamText" class="mb-6"></p><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="button" id="confirmDeleteJamBtn" class="btn bg-red-600 text-white w-full">Hapus</button></div></div>`;
             document.getElementById('confirmDeleteJamBtn').onclick = e => { 
-                const j = e.target.dataset.jam; const i = masterJam.indexOf(j);
+                const j = e.target.dataset.jamValue; const i = masterJam.indexOf(j);
                 if(i>-1) { 
                     masterJam.splice(i,1); 
                     Object.values(masterJadwal).forEach(t=>Object.values(t).forEach(d=>delete d[j]));
                     jadwalKhusus.forEach(k=>delete k.jadwal[j]);
-                    saveConfig(); renderJamList(); hideModal('deleteJam'); 
+                    saveConfig(); renderJamList(); renderJadwalTable(); hideModal('deleteJam'); 
                 }
             };
 
-            document.getElementById('editBelModal').innerHTML = `<div class="card w-full max-w-sm p-6"><h3 class="text-xl font-bold mb-6 text-center">Edit Bel <span id="editBelTitleId"></span></h3><form id="editBelForm" class="space-y-4"><input type="hidden" id="editBelIndex"><input type="text" id="editBelNamaInput" class="w-full bg-slate-100 p-3 rounded-md" required><select id="editBelFileSelect" class="w-full bg-slate-100 p-3 rounded-md"></select><div class="flex gap-4 mt-6"><button type="button" class="btn w-full" data-action="close">Batal</button><button type="submit" class="btn bg-orange-600 text-white w-full">Simpan</button></div></form></div>`;
             document.getElementById('editBelForm').onsubmit = e => { e.preventDefault(); const i = document.getElementById('editBelIndex').value; masterBel[i].nama = document.getElementById('editBelNamaInput').value; masterBel[i].file = document.getElementById('editBelFileSelect').value; saveConfig(); renderBelList(); hideModal('editBel'); };
         }
 
         // --- RENDER LISTS SETTINGS ---
-        function renderHariList() { document.getElementById('hariListContainer').innerHTML = jadwalKhusus.map((h,i)=>`<div class="flex justify-between bg-white p-3 border rounded"><span>${h.nama}</span><div><button class="btn p-1 edit-hari-btn" data-index="${i}" onclick="openEditHari(${i})">Edit</button> <button class="btn p-1 text-red-500" onclick="openDelHari(${i})">Hapus</button></div></div>`).join(''); }
-        function renderJamList() { document.getElementById('jamListContainer').innerHTML = masterJam.sort().map((j,i)=>`<div class="flex justify-between items-center bg-white p-3 border rounded text-sm"><span>${j}</span><div class="flex gap-2"><button class="btn p-1 px-3" onclick="openEditJam(${i})">Edit</button><button class="btn p-1 px-3 text-red-500" onclick="openDelJam('${j}')">Hapus</button></div></div>`).join(''); }
-        function renderBelList() { document.getElementById('belListContainer').innerHTML = masterBel.map((b,i)=>`<div class="card p-3 flex justify-between items-center text-sm"><div><p class="font-bold">${b.nama}</p><p class="text-xs text-slate-500">${b.file || 'Kosong'}</p></div><button class="btn p-1 px-3" onclick="openEditBel(${i})">Edit</button></div>`).join(''); }
+        function renderHariList() { document.getElementById('hariListContainer').innerHTML = jadwalKhusus.map((h,i)=>`<div class="flex justify-between bg-white p-3 border border-slate-200 rounded text-slate-800"><span>${h.nama}</span><div><button class="btn p-1 edit-hari-btn" data-index="${i}" onclick="openEditHari(${i})">Edit</button> <button class="btn p-1 delete-hari-btn text-red-500" data-index="${i}">Hapus</button></div></div>`).join(''); }
+        
+        function renderJamList() { document.getElementById('jamListContainer').innerHTML = masterJam.sort().map((j,i)=>`<div class="flex justify-between items-center bg-white p-3 border border-slate-200 rounded text-slate-800 text-sm"><span>${j}</span><div class="flex gap-2"><button class="btn p-1 px-3 edit-jam-btn" data-jam-value="${j}">Edit</button><button class="btn p-1 px-3 text-red-500 delete-jam-btn" data-jam-value="${j}">Hapus</button></div></div>`).join(''); }
+        
+        function renderBelList() { document.getElementById('belListContainer').innerHTML = masterBel.map((b,i)=>`<div class="card p-3 flex justify-between items-center text-sm text-slate-800"><div><p class="font-bold">${b.nama}</p><p class="text-xs text-slate-500">${b.file || 'Kosong'}</p></div><button class="btn p-1 px-3 edit-bel-btn" data-index="${i}">Edit</button></div>`).join(''); }
+        
+        function renderJadwalMendatangList() {
+            const container = document.getElementById('mendatangListContainer');
+            if (!container) return;
+            
+            if (!jadwalMendatang || jadwalMendatang.length === 0) {
+                container.innerHTML = `<p class="text-slate-500 text-center italic bg-slate-50 p-4 rounded border border-slate-200 border-dashed">Belum ada jadwal yang dijadwalkan.</p>`;
+                return;
+            }
+
+            const todayStr = getTodayDateString();
+            const sorted = [...jadwalMendatang].sort((a,b) => a.date.localeCompare(b.date));
+
+            container.innerHTML = sorted.map(j => {
+                const isPast = j.date < todayStr;
+                const isToday = j.date === todayStr;
+                const dateObj = new Date(j.date);
+                const displayDate = dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                
+                let bgClass = "bg-white border-slate-200";
+                let textClass = "text-slate-800";
+                let badgeClass = "bg-blue-100 text-blue-800";
+                
+                if (isPast) {
+                    bgClass = "bg-slate-100 border-slate-200 opacity-60";
+                    textClass = "text-slate-500 line-through";
+                    badgeClass = "bg-slate-200 text-slate-500";
+                } else if (isToday) {
+                    bgClass = "bg-orange-50 border-orange-300 shadow-sm";
+                    badgeClass = "bg-orange-200 text-orange-800 font-bold animate-pulse";
+                }
+
+                const typeLabel = j.type === 'khusus' ? 'Jadwal Khusus' : 'Ganti Template';
+
+                return `
+                <div class="flex justify-between items-center p-4 border rounded-lg ${bgClass} transition-all">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs px-2 py-0.5 rounded ${badgeClass}">${typeLabel}</span>
+                            ${isToday ? `<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold">Hari Ini!</span>` : ''}
+                        </div>
+                        <p class="font-bold text-lg ${textClass}">${displayDate}</p>
+                        <p class="text-sm font-semibold text-slate-600">→ ${j.value}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn p-2 edit-mendatang-btn" data-id="${j.id}" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                        <button class="btn p-2 text-red-500 hover:bg-slate-100 delete-mendatang-btn" data-id="${j.id}" title="Hapus"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+        
         function populateSettingsDropdowns() { 
             const t = document.getElementById('jadwalTemplateSelect'); const d = document.getElementById('jadwalDaySelect');
             t.innerHTML = [...templates.map(v => `<option value="${v}">${v}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join('');
             const u = () => { const s = t.value; let o = (s === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama; d.innerHTML = o.map(v => `<option value="${v}">${v}</option>`).join(''); renderJadwalTable(); };
-            t.onchange = u; d.onchange = renderJadwalTable; u();
+            t.addEventListener('change', u); d.addEventListener('change', renderJadwalTable); u();
         }
+        
         function renderJadwalTable() {
             const b = document.querySelector('#jadwalTable tbody'); const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value; 
+            if(!b) return;
             let s = (t === 'JADWAL_KHUSUS') ? (jadwalKhusus.find(x=>x.nama===d)?.jadwal || {}) : (masterJadwal[t]?.[d] || {});
-            const c = masterBel.filter(l => l.file || l.nama);
+            const c = masterBel.filter(l => l && (l.file || l.nama));
             
-            // PERBAIKAN: Gunakan variabel penampung sementara agar tidak me-render DOM berkali-kali di dalam loop (Sangat Cepat)
+            // Menggunakan variabel penampung string untuk optimasi rendering
             let htmlTemp = '';
             
-            masterJam.sort().forEach(j => {
+            [...masterJam].sort().forEach(j => {
                 const i = s?.[j] || 0; const isFilled = i > 0;
                 let o = `<option value="0">(Kosong)</option>` + c.map(l => `<option value="${l.id}" ${l.id == i ? 'selected' : ''}>${l.nama}</option>`).join('');
-                htmlTemp += `<tr class="${isFilled ? 'border-b row-filled' : 'border-b'}"><td class="p-3">${j}</td><td class="p-3"><select class="w-full bg-white border p-2 rounded-md" data-jam="${j}">${o}</select></td></tr>`;
+                
+                const trClass = isFilled ? 'border-b border-slate-200 bg-orange-50/50' : 'border-b border-slate-200';
+                
+                const selectClass = isFilled 
+                    ? 'w-full p-2.5 rounded-md outline-none border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold shadow-md cursor-pointer transition-all focus:ring-2 focus:ring-orange-500 hover:shadow-lg'
+                    : 'w-full p-2.5 rounded-md outline-none border border-slate-300 bg-slate-50 text-slate-500 shadow-sm cursor-pointer transition-all hover:bg-white hover:shadow-md focus:ring-2 focus:ring-slate-400';
+                
+                htmlTemp += `<tr class="${trClass}"><td class="p-3 w-16 font-semibold text-slate-700">${j}</td><td class="p-2"><select class="${selectClass}" data-jam="${j}">${o}</select></td></tr>`;
             });
             
-            // Masukkan ke layar HANYA SEKALI di akhir loop
             b.innerHTML = htmlTemp;
         }
 
-        // --- HELPERS (Global scope for onclick) ---
-        window.openEditHari = (i) => { document.getElementById('editHariIndex').value = i; document.getElementById('editHariInput').value = jadwalKhusus[i].nama; showModal('editHari'); };
-        window.openDelHari = (i) => { document.getElementById('deleteHariText').innerHTML=`Hapus <strong>${jadwalKhusus[i].nama}</strong>?`; document.getElementById('confirmDeleteHariBtn').dataset.index = i; showModal('deleteHari'); };
-        window.openEditJam = (i) => { document.getElementById('editJamIndex').value = i; document.getElementById('editJamInput').value = masterJam[i]; showModal('editJam'); };
-        window.openDelJam = (j) => { document.getElementById('deleteJamText').textContent=`Hapus jam ${j}?`; document.getElementById('confirmDeleteJamBtn').dataset.jam = j; showModal('deleteJam'); };
-        window.openEditBel = (i) => { 
-            const b = masterBel[i]; document.getElementById('editBelIndex').value=i; document.getElementById('editBelTitleId').textContent=b.id; 
-            document.getElementById('editBelNamaInput').value=b.nama; 
-            document.getElementById('editBelFileSelect').innerHTML = availableSounds.map(s=>`<option value="${s.value}" ${s.value===b.file?'selected':''}>${s.text}</option>`).join('');
-            showModal('editBel'); 
-        };
-        
+        // --- HELPERS ---
         function applyTimeInputMask(id) {
             const el = document.getElementById(id); if(!el) return;
-            el.addEventListener('input', function(e) {
+            const newClone = el.cloneNode(true);
+            el.parentNode.replaceChild(newClone, el);
+            const freshInput = document.getElementById(id);
+
+            freshInput.addEventListener('input', function(e) {
                 let v = this.value.replace(/[^0-9]/g, '');
                 if(v.length > 4) v = v.slice(0, 4);
                 if(v.length >= 2) {
@@ -855,10 +1353,18 @@
                     this.value = v;
                 }
             });
-            el.addEventListener('keydown', function(e) {
+            freshInput.addEventListener('keydown', function(e) {
                 if (e.key === 'Backspace' && this.value.endsWith(':')) {
                     e.preventDefault(); this.value = this.value.slice(0, -1);
                 }
+            });
+            freshInput.addEventListener('blur', function() {
+                let v = this.value;
+                if(v.length === 0) return;
+                const clean = v.replace(/[^0-9]/g, '');
+                if (clean.length === 1) this.value = '0' + clean + ':00';
+                else if (clean.length === 2) this.value = clean + ':00';
+                else if (clean.length === 3) this.value = '0' + clean.slice(0,1) + ':' + clean.slice(1);
             });
         }
         function showModal(k) { document.getElementById(MODALS[k]).classList.remove('hidden'); document.getElementById(MODALS[k]).classList.add('visible'); }
