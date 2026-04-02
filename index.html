@@ -119,8 +119,9 @@
             <div class="flex items-center gap-2 sm:gap-3 border-l border-slate-700 pl-3 sm:pl-4">
                 <div class="flex flex-col">
                     <span class="text-slate-400 text-[8px] sm:text-[10px] uppercase leading-none">Server Sekolah:</span>
-                    <span id="desktop-status-text" class="font-mono text-gray-400 font-bold max-w-[150px] sm:max-w-[250px] truncate flex items-center gap-1.5 mt-0.5">
-                        <span class="w-2 h-2 rounded-full bg-gray-500"></span> Memeriksa...
+                    <!-- Lebar disesuaikan agar tulisan waktu tidak terpotong (max-w diperbesar) -->
+                    <span id="desktop-status-text" class="font-mono text-gray-400 font-bold w-[200px] sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs">
+                        <span class="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"></span> <span class="truncate">Memeriksa...</span>
                     </span>
                 </div>
             </div>
@@ -601,16 +602,23 @@
             onValue(ref(db, 'desktopStatus'), snap => {
                 if(snap.exists()) {
                     const d = snap.val();
-                    // Toleransi dikurangi menjadi 1 menit (60000ms) agar lebih masuk akal
                     const isOnline = d.online && (Date.now() - (d.lastSeen||0) < 60000);
                     const el = document.getElementById('desktop-status-text');
                     
                     if(isOnline) {
-                        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e]"></span> Online`;
-                        el.className = "font-mono text-green-400 font-bold max-w-[150px] sm:max-w-[250px] truncate flex items-center gap-1.5 mt-0.5";
+                        // PERBAIKAN: Jika Online, tampilkan teks bersih tanpa waktu yang berkedip
+                        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] flex-shrink-0"></span> <span class="truncate">Online</span>`;
+                        el.className = "font-mono text-green-400 font-bold w-[200px] sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs";
                     } else {
-                        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline`;
-                        el.className = "font-mono text-red-400 font-bold max-w-[150px] sm:max-w-[250px] truncate flex items-center gap-1.5 mt-0.5";
+                        // PERBAIKAN: Jika Offline, baru tampilkan waktu "Last Seen" (hanya Jam dan Menit)
+                        let timeStr = "";
+                        if(d.lastSeen) {
+                            const dateObj = new Date(d.lastSeen);
+                            timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\./g, ':');
+                        }
+                        
+                        el.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0"></span> <span class="truncate">Offline ${timeStr ? `(Terakhir aktif: ${timeStr})` : ''}</span>`;
+                        el.className = "font-mono text-red-400 font-bold w-[200px] sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs";
                     }
                 }
             });
