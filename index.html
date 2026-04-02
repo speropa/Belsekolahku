@@ -81,6 +81,7 @@
     </style>
 </head>
 
+<!-- LG:H-SCREEN & OVERFLOW-HIDDEN: Mengunci layout di Desktop, normal scroll di HP -->
 <body class="min-h-screen w-full flex flex-col bg-[#334155] pb-6 lg:pb-0 lg:h-screen lg:overflow-hidden">
     <div id="toast-container"></div>
     
@@ -133,6 +134,7 @@
     </div>
 
     <!-- MAIN APP WRAPPER -->
+    <!-- LG:MIN-H-0 & LG:OVERFLOW-HIDDEN sangat penting agar kolom di dalamnya bisa discroll masing-masing di Desktop -->
     <div id="main-app" class="flex-1 flex flex-col p-2 sm:p-4 lg:p-5 w-full max-w-[1600px] mx-auto lg:min-h-0 lg:overflow-hidden hidden">
         
         <!-- HEADER -->
@@ -177,11 +179,12 @@
         <!-- KONTEN BAWAH -->
         <main class="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:min-h-0 lg:overflow-hidden">
             
-            <!-- KOLOM KIRI (lg:col-span-2) -->
+            <!-- KOLOM KIRI: Jadwal Utama, Khusus, Mendatang -->
+            <!-- LG:COL-SPAN-2 memastikan lebarnya proporsional 2 bagian dari 12 -->
             <div class="lg:col-span-2 flex flex-col gap-4 lg:h-full lg:min-h-0 lg:overflow-hidden">
                 
                 <!-- Jadwal Utama -->
-                <div class="card flex flex-col flex-1 lg:min-h-0">
+                <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-[11px] uppercase tracking-wider flex-none">Jadwal Utama</div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
                         <select id="templateSelect" class="w-full bg-white border-slate-300 border rounded p-1.5 text-xs font-semibold mb-2 focus:ring-2 focus:ring-orange-200 outline-none shadow-sm flex-none" disabled></select>
@@ -190,15 +193,15 @@
                 </div>
                 
                 <!-- Jadwal Khusus -->
-                <div class="card flex flex-col flex-1 lg:min-h-0">
+                <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-[11px] uppercase tracking-wider flex-none">Jadwal Khusus</div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
-                        <div id="jadwalKhususContainer" class="flex overflow-x-auto hide-scroll snap-x lg:grid lg:grid-cols-1 lg:content-start gap-1.5 lg:overflow-y-auto custom-scroll flex-1 pb-1"></div>
+                        <div id="jadwalKhususContainer" class="flex overflow-x-auto hide-scroll snap-x lg:flex lg:flex-col lg:content-start gap-1.5 lg:overflow-y-auto custom-scroll flex-1 pb-1"></div>
                     </div>
                 </div>
                 
                 <!-- Jadwal Mendatang -->
-                <div class="card flex flex-col flex-1 lg:min-h-0">
+                <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-blue-600 font-bold text-[11px] uppercase tracking-wider flex justify-center items-center gap-1 flex-none">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         Mendatang
@@ -211,19 +214,21 @@
                 </div>
             </div>
             
-            <!-- KOLOM TENGAH: Panel Remote (lg:col-span-8 atau 6 tergantung Dual Mode) -->
+            <!-- KOLOM TENGAH: Panel Remote -->
+            <!-- LG:COL-SPAN-8 secara default agar seimbang (rasio 2:8:2) saat Dual Mode mati -->
             <div id="remoteSection" class="lg:col-span-8 card flex flex-col lg:h-full lg:min-h-0 transition-all duration-300">
                 <div class="bg-white border-b border-slate-200 p-3 text-center text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 flex-none">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
                     PANEL REMOTE
                 </div>
                 <div class="p-3 bg-slate-50/50 flex-1 lg:min-h-0 lg:overflow-y-auto custom-scroll">
-                    <!-- Default grid-cols-6 di layar desktop lebar, agar muat lebih banyak tombol persis desktop asli -->
+                    <!-- Default grid-cols-6 di desktop, 3 di HP -->
                     <div id="manualSoundGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 lg:content-start gap-2 pb-2"></div>
                 </div>
             </div>
             
-            <!-- KOLOM KANAN: Daftar Bel Aktif (lg:col-span-2 atau 4 tergantung Dual Mode) -->
+            <!-- KOLOM KANAN: Daftar Bel Aktif -->
+            <!-- LG:COL-SPAN-2 saat Dual Mode mati, memperlebar tampilan -->
             <div id="activeScheduleSection" class="lg:col-span-2 flex flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-300">
                 <div id="scheduleGridContainer" class="flex flex-col lg:grid lg:grid-cols-1 gap-4 flex-1 lg:min-h-0 transition-all duration-300">
                     
@@ -233,7 +238,7 @@
                             <h3 class="font-extrabold text-xs text-blue-600 uppercase flex items-center gap-1.5">
                                 <span class="w-2 h-2 rounded-full bg-blue-500"></span> JADWAL 1
                             </h3>
-                            <button id="btnAddSecondSchedule" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[9px] font-bold border border-blue-200 transition-all shadow-sm">+ DUAL MODE</button>
+                            <button id="btnAddSecondSchedule" class="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded text-[9px] font-bold border border-blue-200 transition-all shadow-sm">+ DUAL</button>
                         </div>
                         <div class="p-2 bg-white flex-1 lg:min-h-0 lg:overflow-y-auto custom-scroll">
                             <div id="activeScheduleContainer" class="space-y-1.5 pr-1 pb-2"></div>
@@ -249,8 +254,8 @@
                             <button id="btnRemoveSecondSchedule" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2 py-1 rounded text-[9px] font-bold transition-all shadow-sm">TUTUP</button>
                         </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2 p-2 bg-slate-50 border-b border-slate-200 flex-none">
-                            <select id="secondTemplateSelect" class="text-xs p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
-                            <select id="secondDaySelect" class="text-xs p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
+                            <select id="secondTemplateSelect" class="text-[11px] p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
+                            <select id="secondDaySelect" class="text-[11px] p-1.5 border border-slate-300 rounded bg-white shadow-sm"></select>
                         </div>
                         <div class="p-2 bg-white flex-1 lg:min-h-0 lg:overflow-y-auto custom-scroll">
                             <div id="secondScheduleContainer" class="space-y-1.5 pr-1 pb-2"></div>
@@ -596,7 +601,8 @@
             onValue(ref(db, 'desktopStatus'), snap => {
                 if(snap.exists()) {
                     const d = snap.val();
-                    const isOnline = d.online && (Date.now() - (d.lastSeen||0) < 20000);
+                    // Toleransi dikurangi menjadi 1 menit (60000ms) agar lebih masuk akal
+                    const isOnline = d.online && (Date.now() - (d.lastSeen||0) < 60000);
                     const el = document.getElementById('desktop-status-text');
                     
                     if(isOnline) {
