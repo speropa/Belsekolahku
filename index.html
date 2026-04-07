@@ -81,17 +81,14 @@
     </style>
 </head>
 
-<!-- LG:H-SCREEN & OVERFLOW-HIDDEN: Mengunci layout di Desktop, normal scroll di HP -->
 <body class="min-h-screen w-full flex flex-col bg-[#334155] pb-6 lg:pb-0 lg:h-screen lg:overflow-hidden">
     <div id="toast-container"></div>
     
-    <!-- LOADING -->
     <div id="loading-spinner" class="fixed inset-0 flex flex-col items-center justify-center bg-[#334155] z-[60]">
         <div class="spinner"></div>
         <p class="mt-4 text-slate-200 font-semibold">Menghubungkan ke Server...</p>
     </div>
 
-    <!-- LOGIN -->
     <div id="login-page" class="fixed inset-0 flex items-center justify-center bg-[#334155] z-[55] hidden p-4">
         <div class="card w-full max-w-sm p-6 sm:p-8 shadow-2xl">
             <div class="text-center mb-6 sm:mb-8">
@@ -110,7 +107,6 @@
         </div>
     </div>
 
-    <!-- STATUS BAR ATAS -->
     <div id="server-status-bar" class="flex-none bg-slate-900 text-white text-[10px] sm:text-xs py-2 px-3 sm:px-4 flex justify-between items-center z-50 shadow-md sticky top-0">
         <div class="flex items-center gap-3 sm:gap-6">
             <span class="font-extrabold text-orange-400 tracking-wider hidden sm:inline">WEB REMOTE</span>
@@ -119,7 +115,6 @@
             <div class="flex items-center gap-2 sm:gap-3 border-l border-slate-700 pl-3 sm:pl-4">
                 <div class="flex flex-col">
                     <span class="text-slate-400 text-[8px] sm:text-[10px] uppercase leading-none">Server Sekolah:</span>
-                    <!-- Lebar disesuaikan agar tulisan waktu tidak terpotong (max-w diperbesar) -->
                     <span id="desktop-status-text" class="font-mono text-gray-400 font-bold w-[200px] sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs">
                         <span class="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"></span> <span class="truncate">Memeriksa...</span>
                     </span>
@@ -134,13 +129,9 @@
         </div>
     </div>
 
-    <!-- MAIN APP WRAPPER -->
-    <!-- LG:MIN-H-0 & LG:OVERFLOW-HIDDEN sangat penting agar kolom di dalamnya bisa discroll masing-masing di Desktop -->
     <div id="main-app" class="flex-1 flex flex-col p-2 sm:p-4 lg:p-5 w-full max-w-[1600px] mx-auto lg:min-h-0 lg:overflow-hidden hidden">
         
-        <!-- HEADER -->
         <header class="flex-none main-header p-4 sm:p-5 lg:p-6 flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6 shadow-xl z-10 mb-4 rounded-xl">
-            <!-- KIRI -->
             <div class="flex items-center space-x-3 lg:space-x-4 z-10 justify-center lg:justify-start">
                 <div class="bg-white/20 p-1.5 lg:p-2 rounded-full backdrop-blur-sm shadow-inner flex-shrink-0">
                     <img id="school-logo" src="https://raw.githubusercontent.com/smp2pajangan/gambar/refs/heads/main/logosmpn2pjg.png" alt="Logo" class="w-10 h-10 lg:w-14 lg:h-14 rounded-full object-cover"/>
@@ -151,7 +142,6 @@
                 </div>
             </div>
 
-            <!-- TENGAH -->
             <div class="flex flex-col items-center justify-center text-center z-10 py-2 lg:py-0">
                 <div id="time" class="text-5xl sm:text-6xl lg:text-6xl font-black tracking-widest leading-none drop-shadow-md">00:00:00</div>
                 <div id="date" class="text-sm sm:text-base text-orange-50 font-medium mt-2 mb-2">Memuat tanggal...</div>
@@ -163,7 +153,6 @@
                 </div>
             </div>
 
-            <!-- KANAN -->
             <div class="flex flex-col items-center lg:items-end justify-center text-center lg:text-right z-10 space-y-2 mt-2 lg:mt-0">
                 <div class="text-orange-50 text-xs sm:text-sm font-medium">Jadwal Aktif Hari Ini</div>
                 <div>
@@ -177,14 +166,10 @@
             </div>
         </header>
         
-        <!-- KONTEN BAWAH -->
         <main class="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 lg:min-h-0 lg:overflow-hidden">
             
-            <!-- KOLOM KIRI: Jadwal Utama, Khusus, Mendatang -->
-            <!-- LG:COL-SPAN-2 memastikan lebarnya proporsional 2 bagian dari 12 -->
             <div class="lg:col-span-2 flex flex-col gap-4 lg:h-full lg:min-h-0 lg:overflow-hidden">
                 
-                <!-- Jadwal Utama -->
                 <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-[11px] uppercase tracking-wider flex-none">Jadwal Utama</div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
@@ -193,7 +178,6 @@
                     </div>
                 </div>
                 
-                <!-- Jadwal Khusus -->
                 <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-[11px] uppercase tracking-wider flex-none">Jadwal Khusus</div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
@@ -201,7 +185,6 @@
                     </div>
                 </div>
                 
-                <!-- Jadwal Mendatang -->
                 <div class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-blue-600 font-bold text-[11px] uppercase tracking-wider flex justify-center items-center gap-1 flex-none">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -209,31 +192,24 @@
                     </div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
                         <div id="jadwalMendatangWidget" class="flex flex-row overflow-x-auto hide-scroll snap-x lg:flex-col lg:justify-start gap-1.5 lg:overflow-y-auto custom-scroll flex-1 pb-1">
-                            <!-- Populated by JS -->
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- KOLOM TENGAH: Panel Remote -->
-            <!-- LG:COL-SPAN-8 secara default agar seimbang (rasio 2:8:2) saat Dual Mode mati -->
             <div id="remoteSection" class="lg:col-span-8 card flex flex-col lg:h-full lg:min-h-0 transition-all duration-300">
                 <div class="bg-white border-b border-slate-200 p-3 text-center text-slate-800 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 flex-none">
                     <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
                     PANEL REMOTE
                 </div>
                 <div class="p-3 bg-slate-50/50 flex-1 lg:min-h-0 lg:overflow-y-auto custom-scroll">
-                    <!-- Default grid-cols-6 di desktop, 3 di HP -->
                     <div id="manualSoundGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 lg:content-start gap-2 pb-2"></div>
                 </div>
             </div>
             
-            <!-- KOLOM KANAN: Daftar Bel Aktif -->
-            <!-- LG:COL-SPAN-2 saat Dual Mode mati, memperlebar tampilan -->
             <div id="activeScheduleSection" class="lg:col-span-2 flex flex-col gap-4 lg:h-full lg:min-h-0 transition-all duration-300">
                 <div id="scheduleGridContainer" class="flex flex-col lg:grid lg:grid-cols-1 gap-4 flex-1 lg:min-h-0 transition-all duration-300">
                     
-                    <!-- Jadwal 1 -->
                     <div class="card flex flex-col flex-1 lg:min-h-0 shadow-md">
                         <div class="flex justify-between items-center p-3 bg-white border-b border-slate-200 flex-none">
                             <h3 class="font-extrabold text-xs text-blue-600 uppercase flex items-center gap-1.5">
@@ -246,7 +222,6 @@
                         </div>
                     </div>
 
-                    <!-- Jadwal 2 -->
                     <div id="secondScheduleCard" class="card flex flex-col flex-1 lg:min-h-0 hidden shadow-md border-t-4 border-t-orange-500">
                         <div class="flex justify-between items-center p-3 bg-white border-b border-slate-200 flex-none">
                             <h3 class="font-extrabold text-xs text-orange-600 uppercase flex items-center gap-1.5">
@@ -267,11 +242,9 @@
         </main>
     </div>
 
-    <!-- MODAL PENGATURAN KESELURUHAN (Responsive) -->
     <div id="settingsModal" class="modal-backdrop">
         <div class="card w-full max-w-6xl h-[90vh] md:h-[85vh] flex flex-col md:flex-row overflow-hidden shadow-2xl relative animate-[toast-in_0.3s_ease]">
             
-            <!-- Sidebar Pengaturan -->
             <aside class="w-full md:w-64 bg-slate-50 border-b md:border-b-0 md:border-r border-slate-200 flex flex-col flex-shrink-0 z-20 shadow-sm md:shadow-none">
                 <div class="p-4 md:p-5 border-b border-slate-200 bg-white flex justify-between items-center">
                     <div class="flex items-center gap-3">
@@ -319,7 +292,6 @@
                 </nav>
             </aside>
 
-            <!-- Area Konten Pengaturan -->
             <main class="flex-1 flex flex-col h-full relative bg-white min-w-0">
                 <button id="closeSettings" class="hidden md:block absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-red-500 transition-all z-10 shadow-sm border border-slate-200">
                     <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -336,7 +308,6 @@
         </div>
     </div>
     
-    <!-- MODAL AKSI (EDIT/HAPUS/TAMBAH) -->
     <div id="editHariModal" class="modal-backdrop">
         <div class="card w-full max-w-sm p-6">
             <h3 class="text-xl font-bold mb-4 text-slate-800">Edit Hari</h3>
@@ -482,6 +453,7 @@
         const db = getDatabase(app);
 
         // --- GLOBAL VARIABLES ---
+        let currentFirebaseTS = 0; // MENYIMPAN TIMESTAMP TERAKHIR FIREBASE (UNTUK ANTI MENTAL/BOUNCE)
         let masterJam = [], masterBel = [], jadwalKhusus = [], masterJadwal = {};
         let jadwalMendatang = [];
         let savedTemplate = 'HARI NORMAL';
@@ -511,6 +483,15 @@
             if (!dataItem) return [];
             if (Array.isArray(dataItem)) return dataItem.filter(i => i !== null && i !== undefined);
             return Object.values(dataItem).filter(i => i !== null && i !== undefined);
+        }
+
+        // AMBIL TANGGAL LOKAL YANG BENAR MENGHINDARI BUG UTC TIMEZONE
+        function getTodayDateString() { 
+            const d = new Date();
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
         }
 
         // --- INIT ---
@@ -606,11 +587,9 @@
                     const el = document.getElementById('desktop-status-text');
                     
                     if(isOnline) {
-                        // PERBAIKAN: Jika Online, tampilkan teks bersih tanpa waktu yang berkedip
                         el.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_#22c55e] flex-shrink-0"></span> <span class="truncate">Online</span>`;
                         el.className = "font-mono text-green-400 font-bold w-[200px] sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[9px] sm:text-xs";
                     } else {
-                        // PERBAIKAN: Jika Offline, baru tampilkan waktu "Last Seen" (hanya Jam dan Menit)
                         let timeStr = "";
                         if(d.lastSeen) {
                             const dateObj = new Date(d.lastSeen);
@@ -628,6 +607,11 @@
             onValue(ref(db, 'schoolBellConfig'), snap => {
                 const data = snap.val() || {};
                 
+                // Update tracker waktu terbaru dari firebase
+                if(data.lastUpdated) {
+                    currentFirebaseTS = new Date(data.lastUpdated).getTime();
+                }
+
                 masterJam = ensureArray(data.masterJam);
                 if (data.masterBel) {
                     masterBel = ensureArray(data.masterBel);
@@ -643,9 +627,10 @@
                 temporaryOverride = data.temporaryOverride || {date:null,name:null};
                 secondSchedule = data.secondSchedule || {active:false,template:'HARI NORMAL',day:'Senin',isKhusus:false,date:null};
 
-                const today = new Date().toISOString().split('T')[0];
-                if(temporaryOverride.date !== today) temporaryOverride = {date:null,name:null};
-                if(manualDayOverride?.date !== today) manualDayOverride = null;
+                // PENGGUNAAN TANGGAL LOKAL BUKAN ISO STRING
+                const today = getTodayDateString();
+                if(temporaryOverride.date && temporaryOverride.date !== today) temporaryOverride = {date:null,name:null};
+                if(manualDayOverride && manualDayOverride.date !== today) manualDayOverride = null;
                 if(secondSchedule.active && secondSchedule.date !== today) { secondSchedule.active=false; secondSchedule.date=null; }
 
                 templates.forEach(t => { if(!masterJadwal[t]) masterJadwal[t]={}; jadwalUtama.forEach(day => { if(!masterJadwal[t][day]) masterJadwal[t][day]={}; }); });
@@ -673,7 +658,20 @@
 
         async function saveConfig() {
             if(!auth.currentUser) return;
-            const data = { masterJam, masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, savedTemplate, manualDayOverride, temporaryOverride, secondSchedule, lastUpdated: new Date().toISOString() };
+            
+            // ANTI MENTAL BUGS:
+            // Pastikan timestamp web lebih baru daripada yg ada di Firebase (memaksa sinkronisasi dengan desktop app)
+            let newTS = Date.now();
+            if (newTS <= currentFirebaseTS) {
+                newTS = currentFirebaseTS + 1000;
+            }
+            const newTimeStr = new Date(newTS).toISOString();
+
+            const data = { 
+                masterJam, masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, 
+                savedTemplate, manualDayOverride, temporaryOverride, secondSchedule, 
+                lastUpdated: newTimeStr 
+            };
             await set(ref(db, 'schoolBellConfig'), data);
         }
         
@@ -716,14 +714,6 @@
             if (secondSchedule && secondSchedule.active) {
                 renderSecondSchedule();
             }
-        }
-
-        function getTodayDateString() { 
-            const d = new Date();
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
         }
 
         function updateCountdown(now) {
@@ -776,8 +766,10 @@
         }
 
         function getActiveInfo() {
-            const today = new Date().toISOString().split('T')[0];
+            // PENGGUNAAN TANGGAL LOKAL BUKAN ISO STRING
+            const today = getTodayDateString(); 
             const dayName = new Date().toLocaleString('id-ID', { weekday: 'long' });
+            
             if (temporaryOverride.date === today && temporaryOverride.name) {
                 const khusus = jadwalKhusus.find(j => j.nama === temporaryOverride.name);
                 return { schedule: khusus ? khusus.jadwal : {}, displayName: temporaryOverride.name.toUpperCase(), isOverride: true, effectiveDayName: temporaryOverride.name };
@@ -853,7 +845,7 @@
         }
         function renderJadwalKhususButtons() { 
             const c = document.getElementById('jadwalKhususContainer'); c.innerHTML = ''; 
-            const t = new Date().toISOString().split('T')[0]; 
+            const t = getTodayDateString();
             if (!jadwalKhusus || jadwalKhusus.length === 0) { c.innerHTML = `<p class="text-slate-400 col-span-full text-center text-xs mt-2 w-full">Kosong.</p>`; } 
             else { 
                 jadwalKhusus.forEach(i => { 
@@ -948,7 +940,6 @@
             const btnAdd = document.getElementById('btnAddSecondSchedule');
             const manualGrid = document.getElementById('manualSoundGrid');
             
-            // Konfigurasi Grid berdasarkan mode (Desktop: lg, Mobile: default)
             if (!secondSchedule.active) {
                 card2.classList.add('hidden'); btnAdd.classList.remove('hidden');
                 
@@ -1021,14 +1012,14 @@
                 const btn = e.target.closest('.btn-day');
                 if (btn) { 
                     const dayName = btn.textContent; 
-                    if (manualDayOverride && manualDayOverride.dayName === dayName) manualDayOverride = null; else manualDayOverride = { date: new Date().toISOString().split('T')[0], dayName: dayName }; 
+                    if (manualDayOverride && manualDayOverride.dayName === dayName) manualDayOverride = null; else manualDayOverride = { date: getTodayDateString(), dayName: dayName }; 
                     temporaryOverride = { date: null, name: null }; renderAll(); saveConfig(); 
                 } 
             });
             document.getElementById('jadwalKhususContainer').addEventListener('click', (e) => { 
                 const btn = e.target.closest('.btn-day');
                 if (btn) { 
-                    const nama = btn.dataset.nama; const t = new Date().toISOString().split('T')[0]; 
+                    const nama = btn.dataset.nama; const t = getTodayDateString(); 
                     if (temporaryOverride.date === t && temporaryOverride.name === nama) temporaryOverride = { date: null, name: null }; else temporaryOverride = { date: t, name: nama }; 
                     manualDayOverride = null; renderAll(); saveConfig(); 
                 } 
@@ -1043,15 +1034,15 @@
                 } 
             });
 
-            document.getElementById('btnAddSecondSchedule').addEventListener('click', () => { secondSchedule.active = true; secondSchedule.date = new Date().toISOString().split('T')[0]; renderAll(); saveConfig(); });
+            document.getElementById('btnAddSecondSchedule').addEventListener('click', () => { secondSchedule.active = true; secondSchedule.date = getTodayDateString(); renderAll(); saveConfig(); });
             document.getElementById('btnRemoveSecondSchedule').addEventListener('click', () => { secondSchedule.active = false; renderAll(); saveConfig(); });
             document.getElementById('secondTemplateSelect').addEventListener('change', (e) => { 
                 secondSchedule.template = e.target.value; secondSchedule.isKhusus = (e.target.value === "KHUSUS"); 
-                secondSchedule.date = new Date().toISOString().split('T')[0];
+                secondSchedule.date = getTodayDateString();
                 if (secondSchedule.isKhusus) secondSchedule.day = jadwalKhusus.length > 0 ? jadwalKhusus[0].nama : ''; else secondSchedule.day = "Senin";
                 renderAll(); saveConfig(); 
             });
-            document.getElementById('secondDaySelect').addEventListener('change', (e) => { secondSchedule.day = e.target.value; secondSchedule.date = new Date().toISOString().split('T')[0]; renderAll(); saveConfig(); });
+            document.getElementById('secondDaySelect').addEventListener('change', (e) => { secondSchedule.day = e.target.value; secondSchedule.date = getTodayDateString(); renderAll(); saveConfig(); });
         }
 
         function updateMendatangOptions() {
@@ -1354,6 +1345,7 @@
         
         function populateSettingsDropdowns() { 
             const t = document.getElementById('jadwalTemplateSelect'); const d = document.getElementById('jadwalDaySelect');
+            if(!t || !d) return;
             t.innerHTML = [...templates.map(v => `<option value="${v}">${v}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join('');
             const u = () => { const s = t.value; let o = (s === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama; d.innerHTML = o.map(v => `<option value="${v}">${v}</option>`).join(''); renderJadwalTable(); };
             t.addEventListener('change', u); d.addEventListener('change', renderJadwalTable); u();
