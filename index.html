@@ -43,7 +43,7 @@
         @media (min-width: 768px) { #toast-container { left: auto; right: 1.5rem; transform: none; width: auto; } }
         
         .toast { display: flex; align-items: center; padding: 1rem; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); color: white; font-weight: 600; width: 100%; animation: toast-in 0.4s ease; }
-        .toast.hiding { animation: toast-out 0.4s ease forwards; }
+        .toast.hiding { animation: toast-out 0.4s forwards; }
         .toast-success { background-color: #22c55e; } .toast-error { background-color: #ef4444; } .toast-info { background-color: #3b82f6; } .toast-warning { background-color: #f59e0b; }
         
         @keyframes toast-in { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -1082,7 +1082,7 @@
             renderHariList();
             document.getElementById('addHariForm').onsubmit = (e) => { e.preventDefault(); const v = document.getElementById('hariInput').value; if(v){ jadwalKhusus.push({nama:v, jadwal:{}}); saveConfig(); renderHariList(); e.target.reset(); }};
             
-            document.getElementById('hariListContainer').addEventListener('click', e => {
+            document.getElementById('hariListContainer').onclick = e => {
                 const target = e.target.closest('button');
                 if (!target) return;
                 const idx = target.dataset.index;
@@ -1096,7 +1096,7 @@
                     document.getElementById('confirmDeleteHariBtn').dataset.deleteIndex = idx;
                     showModal('deleteHari');
                 }
-            });
+            };
 
             // TAB: JADWAL MENDATANG
             document.getElementById('tab-content-mendatang').innerHTML = `
@@ -1114,17 +1114,17 @@
             `;
             renderJadwalMendatangList();
             
-            document.getElementById('btnTambahMendatang').addEventListener('click', () => {
+            document.getElementById('btnTambahMendatang').onclick = () => {
                 document.getElementById('formMendatangTitle').textContent = "Tambah Jadwal Mendatang";
                 document.getElementById('formMendatang').reset();
                 document.getElementById('mendatangId').value = "";
                 document.getElementById('mendatangDate').min = getTodayDateString(); 
                 updateMendatangOptions();
                 showModal('formMendatang');
-            });
-            document.getElementById('mendatangType').addEventListener('change', updateMendatangOptions);
+            };
+            document.getElementById('mendatangType').onchange = updateMendatangOptions;
             
-            document.getElementById('formMendatang').addEventListener('submit', async (e) => {
+            document.getElementById('formMendatang').onsubmit = async (e) => {
                 e.preventDefault();
                 const id = document.getElementById('mendatangId').value;
                 const date = document.getElementById('mendatangDate').value;
@@ -1147,9 +1147,9 @@
                 renderAll(); 
                 hideModal('formMendatang');
                 showToast("Jadwal mendatang disimpan!", "success");
-            });
+            };
 
-            document.getElementById('mendatangListContainer').addEventListener('click', e => {
+            document.getElementById('mendatangListContainer').onclick = e => {
                 const target = e.target.closest('button');
                 if (!target) return;
                 const id = target.dataset.id;
@@ -1170,9 +1170,9 @@
                     document.getElementById('confirmDeleteMendatangBtn').dataset.id = id;
                     showModal('deleteMendatang');
                 }
-            });
+            };
 
-            document.getElementById('confirmDeleteMendatangBtn').addEventListener('click', async (e) => {
+            document.getElementById('confirmDeleteMendatangBtn').onclick = async (e) => {
                 const id = e.currentTarget.dataset.id;
                 jadwalMendatang = jadwalMendatang.filter(j => j.id !== id);
                 await saveConfig();
@@ -1180,7 +1180,7 @@
                 renderAll();
                 hideModal('deleteMendatang');
                 showToast("Jadwal mendatang dihapus", "success");
-            });
+            };
 
             // TAB: MASTER JAM
             document.getElementById('tab-content-jam').innerHTML = `
@@ -1204,7 +1204,7 @@
                 if(!masterJam.includes(v)){ masterJam.push(v); masterJam.sort(); saveConfig(); renderJamList(); renderJadwalTable(); e.target.reset(); document.getElementById('jamInput').value=''; }
             };
             
-            document.getElementById('jamListContainer').addEventListener('click', e => { 
+            document.getElementById('jamListContainer').onclick = e => { 
                 const target = e.target.closest('button'); if(!target) return;
                 const j = target.dataset.jamValue; const idx = masterJam.indexOf(j);
                 if (target.classList.contains('delete-jam-btn') && idx > -1) { 
@@ -1216,7 +1216,7 @@
                     document.getElementById('editJamInput').value = j; 
                     showModal('editJam'); 
                 }
-            });
+            };
 
             // TAB: MASTER BEL
             document.getElementById('tab-content-bel').innerHTML = `
@@ -1228,7 +1228,7 @@
                 </div>
                 <div id="belListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>`;
             renderBelList();
-            document.getElementById('belListContainer').addEventListener('click', e => { const target = e.target.closest('.edit-bel-btn'); if (target) { const index = parseInt(target.dataset.index); const bel = masterBel[index]; document.getElementById('editBelTitleId').textContent = bel.id; document.getElementById('editBelIndex').value = index; document.getElementById('editBelNamaInput').value = bel.nama; document.getElementById('editBelFileSelect').innerHTML = availableSounds.map(s => `<option value="${s.value}" ${s.value === bel.file ? 'selected' : ''}>${s.text}</option>`).join(''); showModal('editBel'); } });
+            document.getElementById('belListContainer').onclick = e => { const target = e.target.closest('.edit-bel-btn'); if (target) { const index = parseInt(target.dataset.index); const bel = masterBel[index]; document.getElementById('editBelTitleId').textContent = bel.id; document.getElementById('editBelIndex').value = index; document.getElementById('editBelNamaInput').value = bel.nama; document.getElementById('editBelFileSelect').innerHTML = availableSounds.map(s => `<option value="${s.value}" ${s.value === bel.file ? 'selected' : ''}>${s.text}</option>`).join(''); showModal('editBel'); } };
 
             // TAB: ATUR JADWAL
             document.getElementById('tab-content-jadwal').innerHTML = `
@@ -1348,7 +1348,7 @@
             if(!t || !d) return;
             t.innerHTML = [...templates.map(v => `<option value="${v}">${v}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join('');
             const u = () => { const s = t.value; let o = (s === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama; d.innerHTML = o.map(v => `<option value="${v}">${v}</option>`).join(''); renderJadwalTable(); };
-            t.addEventListener('change', u); d.addEventListener('change', renderJadwalTable); u();
+            t.onchange = u; d.onchange = renderJadwalTable; u();
         }
         
         function renderJadwalTable() {
