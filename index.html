@@ -1227,6 +1227,12 @@
                     const mm = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
                     const ss = String(recordSeconds % 60).padStart(2, '0');
                     document.getElementById('recordTimer').textContent = `${mm}:${ss}`;
+                    
+                    // Batas otomatis 2 menit (120 detik)
+                    if (recordSeconds >= 120) {
+                        stopRecording();
+                        showToast("Batas maksimal rekaman (2 menit) tercapai.", "info");
+                    }
                 }, 1000);
                 
             } catch (err) {
