@@ -78,6 +78,10 @@
             20%, 40%, 60%, 80% { transform: translateX(5px); }
         }
         .error-shake { animation: shake 0.4s ease-in-out; border-color: #ef4444 !important; color: #ef4444 !important; background-color: #fef2f2 !important; }
+        
+        /* Animasi Rekaman */
+        @keyframes pulse-red { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .recording-active { animation: pulse-red 1.5s infinite; background-color: #ef4444 !important; color: white !important; border-color: #dc2626 !important;}
     </style>
 </head>
 
@@ -159,10 +163,16 @@
                     <span id="activeDayDisplay" class="block text-2xl sm:text-3xl font-bold leading-none">-</span>
                     <span id="activeTemplateDisplay" class="block text-xs sm:text-sm font-medium text-orange-200 mt-1"></span>
                 </div>
-                <button id="settingBtn" class="mt-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-all backdrop-blur-sm border border-white/20 text-xs sm:text-sm font-semibold shadow" disabled>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
-                    <span>Pengaturan Sistem</span>
-                </button>
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button id="btnOpenPengumuman" class="flex-1 sm:flex-none mt-2 bg-blue-600/80 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-all backdrop-blur-sm border border-blue-400/50 text-xs sm:text-sm font-semibold shadow">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                        <span>Pengumuman</span>
+                    </button>
+                    <button id="settingBtn" class="flex-1 sm:flex-none mt-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg flex items-center justify-center space-x-2 transition-all backdrop-blur-sm border border-white/20 text-xs sm:text-sm font-semibold shadow" disabled>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                        <span>Pengaturan</span>
+                    </button>
+                </div>
             </div>
         </header>
         
@@ -240,6 +250,49 @@
                 </div>
             </div>
         </main>
+    </div>
+
+    <!-- MODAL PENGUMUMAN SUARA (BARU) -->
+    <div id="pengumumanModal" class="modal-backdrop">
+        <div class="card w-full max-w-md p-6 text-center relative overflow-hidden">
+            <button class="absolute top-4 right-4 text-slate-400 hover:text-red-500" data-action="close">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <div class="flex items-center justify-center gap-3 mb-2 text-blue-600">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                <h3 class="text-xl font-bold text-slate-800">Siaran Pengumuman</h3>
+            </div>
+            <p class="text-slate-500 text-sm mb-6">Rekam suara Anda untuk disiarkan langsung ke speaker sekolah.</p>
+            
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 flex flex-col items-center justify-center min-h-[120px]">
+                <div id="recordStatusText" class="text-slate-500 font-semibold mb-3">Siap Merekam...</div>
+                <div id="recordTimer" class="text-3xl font-mono font-bold text-slate-800 hidden mb-3">00:00</div>
+                <audio id="previewAudioPlayer" class="w-full hidden mt-2" controls></audio>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btnStartRecord" class="col-span-2 btn bg-red-100 hover:bg-red-200 text-red-700 border-red-200 py-3 flex justify-center items-center gap-2">
+                    <div class="w-3 h-3 bg-red-600 rounded-full"></div> Mulai Merekam
+                </button>
+                <button id="btnStopRecord" class="col-span-2 btn bg-slate-800 hover:bg-slate-900 text-white py-3 flex justify-center items-center gap-2 hidden">
+                    <div class="w-3 h-3 bg-white rounded-sm"></div> Berhenti Merekam
+                </button>
+                
+                <button id="btnRetakeRecord" class="btn bg-slate-100 text-slate-600 hover:bg-slate-200 hidden">Hapus / Ulangi</button>
+                <button id="btnBroadcastRecord" class="btn bg-blue-600 text-white border-0 hover:bg-blue-700 hidden flex justify-center items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                    Kirim & Siarkan
+                </button>
+            </div>
+            
+            <!-- Progress Bar Upload -->
+            <div id="uploadProgressContainer" class="hidden mt-4">
+                <div class="w-full bg-slate-200 rounded-full h-2.5">
+                  <div id="uploadProgressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="uploadProgressText" class="text-xs text-slate-500 mt-2">Mengirim...</p>
+            </div>
+        </div>
     </div>
 
     <div id="settingsModal" class="modal-backdrop">
@@ -437,6 +490,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadUrl, deleteObject } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCnR2U7iBj1R7CFbAJzVYxzASxXcAztqp8",
@@ -451,6 +505,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
+        const storage = getStorage(app);
 
         // --- GLOBAL VARIABLES ---
         let currentFirebaseTS = 0; // MENYIMPAN TIMESTAMP TERAKHIR FIREBASE (UNTUK ANTI MENTAL/BOUNCE)
@@ -464,6 +519,14 @@
         let nextBellTimeout = null;
         let isDataLoaded = false;
         let lastCheckedDate = null;
+        
+        // --- VARIABLES UNTUK REKAMAN PENGUMUMAN ---
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob = null;
+        let announcementAudioUrl = null;
+        let recordInterval = null;
+        let recordSeconds = 0;
 
         const templates = ['HARI NORMAL', 'BULAN PUASA', 'UJIAN', 'KOKULIKULER', 'LAINNYA'];
         const jadwalUtama = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -476,7 +539,8 @@
             editJam: 'editJamModal', 
             deleteJam: 'deleteJamModal', 
             editBel: 'editBelModal', 
-            confirmPlay: 'confirmPlayModal' 
+            confirmPlay: 'confirmPlayModal',
+            pengumuman: 'pengumumanModal'
         };
 
         function ensureArray(dataItem) {
@@ -864,10 +928,18 @@
             
             const upcoming = jadwalMendatang.filter(j => j.date >= todayStr).sort((a,b) => a.date.localeCompare(b.date));
             
+            // JIKA JADWAL MENDATANG KOSONG, SEMBUNYIKAN KARTUNYA
             if (upcoming.length === 0) {
-                container.innerHTML = `<p class="text-slate-400 text-center italic mt-2 text-xs w-full">Tidak ada jadwal.</p>`;
+                document.getElementById('jadwalMendatangCard').classList.add('hidden');
+                document.getElementById('jadwalKhususCard').classList.remove('lg:flex-1');
+                document.getElementById('jadwalKhususCard').style.flex = "2 1 0%";
                 return;
             }
+
+            // JIKA ADA JADWAL MENDATANG, TAMPILKAN DAN KEMBALIKAN RASIO 1:1
+            document.getElementById('jadwalMendatangCard').classList.remove('hidden');
+            document.getElementById('jadwalKhususCard').style.flex = "1 1 0%";
+            document.getElementById('jadwalKhususCard').classList.add('lg:flex-1');
 
             container.innerHTML = upcoming.map(j => {
                 const dateObj = new Date(j.date);
@@ -991,11 +1063,28 @@
         function setupEventListeners() {
             document.getElementById('settingBtn').addEventListener('click', () => { renderSettingsContent(); populateSettingsDropdowns(); showModal('settings'); });
             document.querySelectorAll('[data-action="close"]').forEach(btn => {
-                btn.addEventListener('click', (e) => { hideModal(e.target.closest('.modal-backdrop').id.replace('Modal', '')); renderAll(); });
+                btn.addEventListener('click', (e) => { 
+                    hideModal(e.target.closest('.modal-backdrop').id.replace('Modal', '')); 
+                    if(e.target.closest('.modal-backdrop').id === 'pengumumanModal') stopRecording();
+                    renderAll(); 
+                });
             });
             
+            // Event Listener Pengumuman (BARU)
+            document.getElementById('btnOpenPengumuman').addEventListener('click', () => {
+                resetRecorder();
+                showModal('pengumuman');
+            });
+            document.getElementById('btnStartRecord').addEventListener('click', startRecording);
+            document.getElementById('btnStopRecord').addEventListener('click', stopRecording);
+            document.getElementById('btnRetakeRecord').addEventListener('click', resetRecorder);
+            document.getElementById('btnBroadcastRecord').addEventListener('click', broadcastAnnouncement);
+            
             document.body.addEventListener('click', (e) => { 
-                if(e.target.matches('.modal-backdrop')) hideModal(e.target.id.replace('Modal','')); 
+                if(e.target.matches('.modal-backdrop')) {
+                    hideModal(e.target.id.replace('Modal','')); 
+                    if(e.target.id === 'pengumumanModal') stopRecording();
+                }
                 
                 const navBtn = e.target.closest('.settings-nav-btn');
                 if(navBtn) {
@@ -1064,6 +1153,148 @@
             if(!bel || !bel.id) return;
             await set(ref(db, 'remotePlayTrigger'), { belId: bel.id, timestamp: Date.now() });
             showToast(`Perintah: ${bel.nama} terkirim.`, 'success');
+        }
+
+        // --- FUNGSI REKAM SUARA (BARU) ---
+        function resetRecorder() {
+            if (recordInterval) clearInterval(recordInterval);
+            recordSeconds = 0;
+            audioChunks = [];
+            audioBlob = null;
+            if(announcementAudioUrl) {
+                URL.revokeObjectURL(announcementAudioUrl);
+                announcementAudioUrl = null;
+            }
+            
+            document.getElementById('recordTimer').textContent = "00:00";
+            document.getElementById('recordTimer').classList.add('hidden');
+            document.getElementById('recordStatusText').textContent = "Siap Merekam...";
+            document.getElementById('previewAudioPlayer').classList.add('hidden');
+            
+            document.getElementById('btnStartRecord').classList.remove('hidden');
+            document.getElementById('btnStopRecord').classList.add('hidden');
+            document.getElementById('btnStartRecord').classList.remove('recording-active');
+            
+            document.getElementById('btnRetakeRecord').classList.add('hidden');
+            document.getElementById('btnBroadcastRecord').classList.add('hidden');
+            document.getElementById('btnBroadcastRecord').disabled = false;
+            
+            document.getElementById('uploadProgressContainer').classList.add('hidden');
+            document.getElementById('uploadProgressBar').style.width = '0%';
+        }
+
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                
+                mediaRecorder.ondataavailable = e => {
+                    if (e.data.size > 0) {
+                        audioChunks.push(e.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    announcementAudioUrl = URL.createObjectURL(audioBlob);
+                    
+                    const player = document.getElementById('previewAudioPlayer');
+                    player.src = announcementAudioUrl;
+                    player.classList.remove('hidden');
+                    
+                    document.getElementById('recordTimer').classList.add('hidden');
+                    document.getElementById('recordStatusText').textContent = "Pratinjau Hasil Rekaman:";
+                    
+                    document.getElementById('btnStartRecord').classList.add('hidden');
+                    document.getElementById('btnStopRecord').classList.add('hidden');
+                    document.getElementById('btnRetakeRecord').classList.remove('hidden');
+                    document.getElementById('btnBroadcastRecord').classList.remove('hidden');
+                };
+                
+                audioChunks = [];
+                mediaRecorder.start();
+                
+                document.getElementById('btnStartRecord').classList.add('hidden');
+                document.getElementById('btnStopRecord').classList.remove('hidden');
+                document.getElementById('btnStopRecord').classList.add('recording-active');
+                
+                document.getElementById('recordStatusText').textContent = "Merekam...";
+                document.getElementById('recordTimer').classList.remove('hidden');
+                
+                recordSeconds = 0;
+                recordInterval = setInterval(() => {
+                    recordSeconds++;
+                    const mm = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+                    const ss = String(recordSeconds % 60).padStart(2, '0');
+                    document.getElementById('recordTimer').textContent = `${mm}:${ss}`;
+                }, 1000);
+                
+            } catch (err) {
+                console.error(err);
+                showToast("Gagal mengakses mikrofon! Pastikan izin diberikan.", "error");
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                if (recordInterval) clearInterval(recordInterval);
+                document.getElementById('btnStopRecord').classList.remove('recording-active');
+            }
+        }
+
+        async function broadcastAnnouncement() {
+            if(!audioBlob) return;
+            
+            const btnBroadcast = document.getElementById('btnBroadcastRecord');
+            const progressContainer = document.getElementById('uploadProgressContainer');
+            const progressBar = document.getElementById('uploadProgressBar');
+            
+            btnBroadcast.disabled = true;
+            progressContainer.classList.remove('hidden');
+            progressBar.style.width = '0%';
+            
+            // 1. Upload ke Firebase Storage
+            const fileName = `pengumuman_${Date.now()}.webm`;
+            const fileRef = storageRef(storage, `temp_audio/${fileName}`);
+            const uploadTask = uploadBytesResumable(fileRef, audioBlob);
+
+            uploadTask.on('state_changed', 
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    progressBar.style.width = progress + '%';
+                }, 
+                (error) => {
+                    console.error("Upload failed", error);
+                    showToast("Gagal mengirim suara!", "error");
+                    btnBroadcast.disabled = false;
+                    progressContainer.classList.add('hidden');
+                }, 
+                async () => {
+                    // Upload Selesai
+                    try {
+                        const downloadURL = await getDownloadUrl(uploadTask.snapshot.ref);
+                        
+                        // 2. Kirim URL ke Realtime Database agar Desktop tahu
+                        await set(ref(db, 'remotePlayTrigger'), { 
+                            url: downloadURL, 
+                            isAnnouncement: true, // Tanda ini pengumuman, agar diset ke 50%
+                            timestamp: Date.now(),
+                            fileName: fileName // Kirim nama file agar Desktop bisa bantu hapus setelah di-play
+                        });
+                        
+                        showToast("Pengumuman berhasil disiarkan!", "success");
+                        hideModal('pengumuman');
+                        resetRecorder();
+                        
+                    } catch (error) {
+                        showToast("Gagal memproses link suara!", "error");
+                        btnBroadcast.disabled = false;
+                        progressContainer.classList.add('hidden');
+                    }
+                }
+            );
         }
 
         // --- SETTINGS LOGIC ---
