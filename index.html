@@ -1178,9 +1178,11 @@
             document.getElementById('btnRetakeRecord').classList.add('hidden');
             document.getElementById('btnBroadcastRecord').classList.add('hidden');
             document.getElementById('btnBroadcastRecord').disabled = false;
+            document.getElementById('btnBroadcastRecord').innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg> Kirim & Siarkan`;
             
             document.getElementById('uploadProgressContainer').classList.add('hidden');
             document.getElementById('uploadProgressBar').style.width = '0%';
+            document.getElementById('uploadProgressText').textContent = "Mengirim...";
         }
 
         async function startRecording() {
@@ -1250,51 +1252,73 @@
             const btnBroadcast = document.getElementById('btnBroadcastRecord');
             const progressContainer = document.getElementById('uploadProgressContainer');
             const progressBar = document.getElementById('uploadProgressBar');
+            const progressText = document.getElementById('uploadProgressText');
+            const originalBtnHTML = btnBroadcast.innerHTML;
             
+            // UI Loading State (Mencegah tombol terlihat stuck)
             btnBroadcast.disabled = true;
+            btnBroadcast.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> <span>Mengirim...</span>`;
             progressContainer.classList.remove('hidden');
             progressBar.style.width = '0%';
+            progressText.textContent = "Memulai upload...";
             
-            // 1. Upload ke Firebase Storage
-            const fileName = `pengumuman_${Date.now()}.webm`;
-            const fileRef = storageRef(storage, `temp_audio/${fileName}`);
-            const uploadTask = uploadBytesResumable(fileRef, audioBlob);
+            try {
+                // 1. Upload ke Firebase Storage
+                const fileName = `pengumuman_${Date.now()}.webm`;
+                const fileRef = storageRef(storage, `temp_audio/${fileName}`);
+                const uploadTask = uploadBytesResumable(fileRef, audioBlob);
 
-            uploadTask.on('state_changed', 
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    progressBar.style.width = progress + '%';
-                }, 
-                (error) => {
-                    console.error("Upload failed", error);
-                    showToast("Gagal mengirim suara!", "error");
-                    btnBroadcast.disabled = false;
-                    progressContainer.classList.add('hidden');
-                }, 
-                async () => {
-                    // Upload Selesai
-                    try {
-                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        progressBar.style.width = progress + '%';
+                        progressText.textContent = `Mengirim... ${Math.round(progress)}%`;
+                    }, 
+                    (error) => {
+                        console.error("Upload failed", error);
+                        let errMsg = "Gagal mengirim suara!";
+                        if(error.code === 'storage/unauthorized') errMsg = "Akses ditolak! Cek Rules Firebase Storage.";
+                        showToast(errMsg, "error");
                         
-                        // 2. Kirim URL ke Realtime Database agar Desktop tahu
-                        await set(ref(db, 'remotePlayTrigger'), { 
-                            url: downloadURL, 
-                            isAnnouncement: true, // Tanda ini pengumuman, agar diset ke 50%
-                            timestamp: Date.now(),
-                            fileName: fileName // Kirim nama file agar Desktop bisa bantu hapus setelah di-play
-                        });
-                        
-                        showToast("Pengumuman berhasil disiarkan!", "success");
-                        hideModal('pengumuman');
-                        resetRecorder();
-                        
-                    } catch (error) {
-                        showToast("Gagal memproses link suara!", "error");
+                        // Kembalikan UI jika gagal
                         btnBroadcast.disabled = false;
+                        btnBroadcast.innerHTML = originalBtnHTML;
                         progressContainer.classList.add('hidden');
+                    }, 
+                    async () => {
+                        // Upload Selesai
+                        try {
+                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                            
+                            // 2. Kirim URL ke Realtime Database agar Desktop tahu
+                            await set(ref(db, 'remotePlayTrigger'), { 
+                                url: downloadURL, 
+                                isAnnouncement: true,
+                                timestamp: Date.now(),
+                                fileName: fileName 
+                            });
+                            
+                            showToast("Pengumuman berhasil dikirim dan disiarkan!", "success");
+                            hideModal('pengumuman');
+                            resetRecorder();
+                            
+                        } catch (error) {
+                            console.error("Sync failed", error);
+                            showToast("Gagal memproses link suara!", "error");
+                            
+                            btnBroadcast.disabled = false;
+                            btnBroadcast.innerHTML = originalBtnHTML;
+                            progressContainer.classList.add('hidden');
+                        }
                     }
-                }
-            );
+                );
+            } catch (e) {
+                console.error("System error", e);
+                showToast("Terjadi kesalahan sistem!", "error");
+                btnBroadcast.disabled = false;
+                btnBroadcast.innerHTML = originalBtnHTML;
+                progressContainer.classList.add('hidden');
+            }
         }
 
         // --- SETTINGS LOGIC ---
