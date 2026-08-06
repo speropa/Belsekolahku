@@ -1239,17 +1239,17 @@
 
                 micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                 
-                // --- TRIK MANIPULASI DELAY 1 DETIK ---
+                // --- TRIK MANIPULASI DELAY 2 DETIK ---
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const source = audioContext.createMediaStreamSource(micStream);
                 
-                // Buat penahan suara (Delay) selama 1 detik
-                const delayNode = audioContext.createDelay(2.0);
-                delayNode.delayTime.value = 1.0; 
+                // Buat penahan suara (Delay) maksimal 3 detik, set ke 2 detik
+                const delayNode = audioContext.createDelay(3.0);
+                delayNode.delayTime.value = 2.0; 
                 
                 const destination = audioContext.createMediaStreamDestination();
                 
-                // Sambungkan Mic -> Delay 1 Detik -> Destination
+                // Sambungkan Mic -> Delay 2 Detik -> Destination
                 source.connect(delayNode);
                 delayNode.connect(destination);
 
@@ -1258,7 +1258,7 @@
                     recorderOptions.mimeType = 'audio/webm;codecs=opus';
                 }
 
-                // Rekam dari 'destination' yang suaranya sudah tertahan 1 detik
+                // Rekam dari 'destination' yang suaranya sudah tertahan 2 detik
                 mediaRecorder = new MediaRecorder(destination.stream, recorderOptions);
                 
                 mediaRecorder.ondataavailable = e => {
@@ -1316,14 +1316,14 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 if (recordInterval) clearInterval(recordInterval);
                 document.getElementById('btnStopRecord').classList.remove('recording-active');
-                document.getElementById('recordStatusText').textContent = "Menyimpan... (Tunggu 1 detik)";
+                document.getElementById('recordStatusText').textContent = "Menyimpan... (Tunggu 2 detik)";
                 
-                // KITA HARUS MENUNGGU 1 DETIK SEBELUM MEMATIKAN REKAMAN!
+                // KITA HARUS MENUNGGU 2 DETIK SEBELUM MEMATIKAN REKAMAN!
                 // Mengapa? Karena suara terakhir yang baru saja Anda ucapkan masih "berjalan"
-                // di dalam efek DelayNode. Kita beri waktu 1 detik agar suara terakhir masuk ke rekaman.
+                // di dalam efek DelayNode. Kita beri waktu 2 detik agar suara terakhir masuk ke rekaman.
                 setTimeout(() => {
                     mediaRecorder.stop();
-                }, 1000);
+                }, 2000);
             }
         }
 
