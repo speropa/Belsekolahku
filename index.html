@@ -490,7 +490,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCnR2U7iBj1R7CFbAJzVYxzASxXcAztqp8",
@@ -505,7 +504,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
-        const storage = getStorage(app);
 
         // --- GLOBAL VARIABLES ---
         let currentFirebaseTS = 0; // MENYIMPAN TIMESTAMP TERAKHIR FIREBASE (UNTUK ANTI MENTAL/BOUNCE)
@@ -1257,61 +1255,54 @@
             
             // UI Loading State (Mencegah tombol terlihat stuck)
             btnBroadcast.disabled = true;
-            btnBroadcast.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> <span>Mengirim...</span>`;
+            btnBroadcast.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> <span>Memproses...</span>`;
             progressContainer.classList.remove('hidden');
-            progressBar.style.width = '0%';
-            progressText.textContent = "Memulai upload...";
+            progressBar.style.width = '50%';
+            progressText.textContent = "Mengkonversi suara...";
             
             try {
-                // 1. Upload ke Firebase Storage
-                const fileName = `pengumuman_${Date.now()}.webm`;
-                const fileRef = storageRef(storage, `temp_audio/${fileName}`);
-                const uploadTask = uploadBytesResumable(fileRef, audioBlob);
-
-                uploadTask.on('state_changed', 
-                    (snapshot) => {
-                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                        progressBar.style.width = progress + '%';
-                        progressText.textContent = `Mengirim... ${Math.round(progress)}%`;
-                    }, 
-                    (error) => {
-                        console.error("Upload failed", error);
-                        let errMsg = "Gagal mengirim suara!";
-                        if(error.code === 'storage/unauthorized') errMsg = "Akses ditolak! Cek Rules Firebase Storage.";
-                        showToast(errMsg, "error");
+                // Konversi Blob Suara menjadi Base64 String (Data URL)
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = async () => {
+                    const base64AudioData = reader.result;
+                    
+                    progressBar.style.width = '80%';
+                    progressText.textContent = "Mengirim ke server...";
+                    
+                    try {
+                        // Kirim String Base64 langsung ke Realtime Database! (Gratis & Tanpa Storage)
+                        await set(ref(db, 'remotePlayTrigger'), { 
+                            url: base64AudioData, // Mengirim suara berupa teks Base64
+                            isAnnouncement: true,
+                            timestamp: Date.now()
+                        });
                         
-                        // Kembalikan UI jika gagal
+                        progressBar.style.width = '100%';
+                        progressText.textContent = "Selesai!";
+                        
+                        showToast("Pengumuman berhasil dikirim dan disiarkan!", "success");
+                        setTimeout(() => {
+                            hideModal('pengumuman');
+                            resetRecorder();
+                        }, 500);
+                        
+                    } catch (error) {
+                        console.error("Gagal kirim Database", error);
+                        showToast("Gagal mengirim perintah ke server!", "error");
                         btnBroadcast.disabled = false;
                         btnBroadcast.innerHTML = originalBtnHTML;
                         progressContainer.classList.add('hidden');
-                    }, 
-                    async () => {
-                        // Upload Selesai
-                        try {
-                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                            
-                            // 2. Kirim URL ke Realtime Database agar Desktop tahu
-                            await set(ref(db, 'remotePlayTrigger'), { 
-                                url: downloadURL, 
-                                isAnnouncement: true,
-                                timestamp: Date.now(),
-                                fileName: fileName 
-                            });
-                            
-                            showToast("Pengumuman berhasil dikirim dan disiarkan!", "success");
-                            hideModal('pengumuman');
-                            resetRecorder();
-                            
-                        } catch (error) {
-                            console.error("Sync failed", error);
-                            showToast("Gagal memproses link suara!", "error");
-                            
-                            btnBroadcast.disabled = false;
-                            btnBroadcast.innerHTML = originalBtnHTML;
-                            progressContainer.classList.add('hidden');
-                        }
                     }
-                );
+                };
+                
+                reader.onerror = () => {
+                    showToast("Gagal membaca rekaman audio!", "error");
+                    btnBroadcast.disabled = false;
+                    btnBroadcast.innerHTML = originalBtnHTML;
+                    progressContainer.classList.add('hidden');
+                };
+
             } catch (e) {
                 console.error("System error", e);
                 showToast("Terjadi kesalahan sistem!", "error");
