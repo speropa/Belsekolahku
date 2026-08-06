@@ -542,6 +542,8 @@
         let announcementAudioUrl = null;
         let recordInterval = null;
         let recordSeconds = 0;
+        let audioContext = null; // Tambahan untuk memanipulasi stream audio
+        let micStream = null;    // Menyimpan sumber mic
 
         const templates = ['HARI NORMAL', 'BULAN PUASA', 'UJIAN', 'KOKULIKULER', 'LAINNYA'];
         const jadwalUtama = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -1196,6 +1198,10 @@
                 announcementAudioUrl = null;
             }
             
+            // Pastikan stream dan context audio dimatikan
+            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+            if (micStream) micStream.getTracks().forEach(track => track.stop());
+            
             document.getElementById('recordTimer').textContent = "00:00";
             document.getElementById('recordTimer').classList.add('hidden');
             document.getElementById('recordStatusText').textContent = "Siap Merekam...";
@@ -1217,32 +1223,43 @@
 
         async function startRecording() {
             try {
-                // UI Feedback: Beritahu pengguna agar menunggu mikrofon siap
+                // UI Langsung berubah, Anda bisa langsung bicara!
                 document.getElementById('btnStartRecord').classList.add('hidden');
                 document.getElementById('btnStopRecord').classList.remove('hidden');
-                document.getElementById('recordStatusText').textContent = "Menyiapkan Mikrofon (Mohon tunggu)...";
+                document.getElementById('recordStatusText').textContent = "Merekam... (Silakan bicara)";
+                document.getElementById('recordTimer').classList.remove('hidden');
+                document.getElementById('btnStopRecord').classList.add('recording-active');
                 
-                // PERBAIKAN KUALITAS SUARA: Matikan filter otomatis browser yang merusak suara
-                // dan atur ke mode perekaman murni (raw audio)
                 const audioConstraints = {
-                    echoCancellation: false,   // Matikan peredam gema
-                    noiseSuppression: false,   // Matikan peredam bising otomatis browser
-                    autoGainControl: false,    // Matikan penstabil volume otomatis
-                    channelCount: 1            // Gunakan format Mono (standar suara mic)
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    channelCount: 1
                 };
 
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                 
-                // JEDA 600ms: Membangunkan perangkat keras Mic agar suara awal tidak terpotong!
-                await new Promise(resolve => setTimeout(resolve, 600));
+                // --- TRIK MANIPULASI DELAY 1 DETIK ---
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContext.createMediaStreamSource(micStream);
+                
+                // Buat penahan suara (Delay) selama 1 detik
+                const delayNode = audioContext.createDelay(2.0);
+                delayNode.delayTime.value = 1.0; 
+                
+                const destination = audioContext.createMediaStreamDestination();
+                
+                // Sambungkan Mic -> Delay 1 Detik -> Destination
+                source.connect(delayNode);
+                delayNode.connect(destination);
 
-                // PERBAIKAN BITRATE: Gunakan codec OPUS (kualitas tinggi) dan tingkatkan bitrate
-                let recorderOptions = { audioBitsPerSecond: 128000 }; // 128 kbps (Standar MP3 jernih)
+                let recorderOptions = { audioBitsPerSecond: 128000 };
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                     recorderOptions.mimeType = 'audio/webm;codecs=opus';
                 }
 
-                mediaRecorder = new MediaRecorder(stream, recorderOptions);
+                // Rekam dari 'destination' yang suaranya sudah tertahan 1 detik
+                mediaRecorder = new MediaRecorder(destination.stream, recorderOptions);
                 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) {
@@ -1265,16 +1282,14 @@
                     document.getElementById('btnStopRecord').classList.add('hidden');
                     document.getElementById('btnRetakeRecord').classList.remove('hidden');
                     document.getElementById('btnBroadcastRecord').classList.remove('hidden');
+
+                    // Bersihkan memori audio
+                    if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                    if (micStream) micStream.getTracks().forEach(track => track.stop());
                 };
                 
                 audioChunks = [];
                 mediaRecorder.start();
-                
-                document.getElementById('btnStopRecord').classList.add('recording-active');
-                
-                // PERUBAHAN: Ubah teks instruksi yang lebih jelas
-                document.getElementById('recordStatusText').textContent = "Merekam... (Silakan bicara)";
-                document.getElementById('recordTimer').classList.remove('hidden');
                 
                 recordSeconds = 0;
                 recordInterval = setInterval(() => {
@@ -1293,15 +1308,22 @@
             } catch (err) {
                 console.error(err);
                 showToast("Gagal mengakses mikrofon! Pastikan izin diberikan.", "error");
+                resetRecorder();
             }
         }
 
         function stopRecording() {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
                 if (recordInterval) clearInterval(recordInterval);
                 document.getElementById('btnStopRecord').classList.remove('recording-active');
+                document.getElementById('recordStatusText').textContent = "Menyimpan... (Tunggu 1 detik)";
+                
+                // KITA HARUS MENUNGGU 1 DETIK SEBELUM MEMATIKAN REKAMAN!
+                // Mengapa? Karena suara terakhir yang baru saja Anda ucapkan masih "berjalan"
+                // di dalam efek DelayNode. Kita beri waktu 1 detik agar suara terakhir masuk ke rekaman.
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 1000);
             }
         }
 
