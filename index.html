@@ -1222,12 +1222,27 @@
                 document.getElementById('btnStopRecord').classList.remove('hidden');
                 document.getElementById('recordStatusText').textContent = "Menyiapkan Mikrofon (Mohon tunggu)...";
                 
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // PERBAIKAN KUALITAS SUARA: Matikan filter otomatis browser yang merusak suara
+                // dan atur ke mode perekaman murni (raw audio)
+                const audioConstraints = {
+                    echoCancellation: false,   // Matikan peredam gema
+                    noiseSuppression: false,   // Matikan peredam bising otomatis browser
+                    autoGainControl: false,    // Matikan penstabil volume otomatis
+                    channelCount: 1            // Gunakan format Mono (standar suara mic)
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
                 
                 // JEDA 600ms: Membangunkan perangkat keras Mic agar suara awal tidak terpotong!
                 await new Promise(resolve => setTimeout(resolve, 600));
 
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                // PERBAIKAN BITRATE: Gunakan codec OPUS (kualitas tinggi) dan tingkatkan bitrate
+                let recorderOptions = { audioBitsPerSecond: 128000 }; // 128 kbps (Standar MP3 jernih)
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                }
+
+                mediaRecorder = new MediaRecorder(stream, recorderOptions);
                 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) {
