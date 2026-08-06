@@ -490,7 +490,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadUrl, deleteObject } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
+        import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCnR2U7iBj1R7CFbAJzVYxzASxXcAztqp8",
@@ -1274,7 +1274,7 @@
                 async () => {
                     // Upload Selesai
                     try {
-                        const downloadURL = await getDownloadUrl(uploadTask.snapshot.ref);
+                        const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
                         
                         // 2. Kirim URL ke Realtime Database agar Desktop tahu
                         await set(ref(db, 'remotePlayTrigger'), { 
