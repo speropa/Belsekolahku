@@ -546,7 +546,6 @@
         let announcementAudioUrl = null;
         let recordInterval = null;
         let recordSeconds = 0;
-        let audioContext = null; // Tambahan untuk memanipulasi stream audio
         let micStream = null;    // Menyimpan sumber mic
 
         const templates = ['HARI NORMAL', 'BULAN PUASA', 'UJIAN', 'KOKULIKULER', 'LAINNYA'];
@@ -1100,50 +1099,56 @@
             document.getElementById('btnStartRecord').addEventListener('click', startRecording);
             document.getElementById('btnStopRecord').addEventListener('click', stopRecording);
             document.getElementById('btnRetakeRecord').addEventListener('click', resetRecorder);
-            document.getElementById('btnUploadAudio').addEventListener('click', () => {
-                document.getElementById('uploadAudioInput').click();
-            });
-            document.getElementById('uploadAudioInput').addEventListener('change', (e) => {
+            
+            // PERUBAHAN: Upload Audio Listener dengan Penambahan Jeda 1 Detik
+            document.getElementById('uploadAudioInput').addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 
-                // Batas ukuran 5MB untuk mencegah query firebase kepenuhan dari base64
                 if (file.size > 5 * 1024 * 1024) {
                     showToast("Ukuran file terlalu besar! Maksimal 5MB.", "error");
                     e.target.value = '';
                     return;
                 }
 
-                audioBlob = file;
-                if (announcementAudioUrl) {
-                    URL.revokeObjectURL(announcementAudioUrl);
-                }
-                announcementAudioUrl = URL.createObjectURL(file);
-                
-                const player = document.getElementById('previewAudioPlayer');
-                player.src = announcementAudioUrl;
-                player.classList.remove('hidden');
-                
-                document.getElementById('recordStatusText').textContent = "Pratinjau File Audio:";
-                
+                document.getElementById('recordStatusText').textContent = "Memproses file (Menambahkan jeda 1 detik)...";
                 document.getElementById('btnStartRecord').classList.add('hidden');
                 document.getElementById('btnUploadAudio').classList.add('hidden');
-                document.getElementById('btnStopRecord').classList.add('hidden');
-                document.getElementById('btnRetakeRecord').classList.remove('hidden');
-                document.getElementById('btnBroadcastRecord').classList.remove('hidden');
-                
-                // Set durasi dari file upload
-                const audio = new Audio(announcementAudioUrl);
-                audio.addEventListener('loadedmetadata', () => {
-                    let dur = audio.duration;
-                    if(dur && dur !== Infinity) {
-                        recordSeconds = Math.floor(dur);
-                    } else {
-                        recordSeconds = 0;
+
+                try {
+                    // Terapkan logika jeda 1 detik untuk MP3 yg diupload
+                    audioBlob = await processAudioBlobWithSilence(file);
+                    
+                    if (announcementAudioUrl) {
+                        URL.revokeObjectURL(announcementAudioUrl);
                     }
-                });
+                    announcementAudioUrl = URL.createObjectURL(audioBlob);
+                    
+                    const player = document.getElementById('previewAudioPlayer');
+                    player.src = announcementAudioUrl;
+                    player.classList.remove('hidden');
+                    
+                    document.getElementById('recordStatusText').textContent = "Pratinjau File Audio (Ditambah 1s jeda):";
+                    
+                    document.getElementById('btnRetakeRecord').classList.remove('hidden');
+                    document.getElementById('btnBroadcastRecord').classList.remove('hidden');
+                    
+                    const audio = new Audio(announcementAudioUrl);
+                    audio.addEventListener('loadedmetadata', () => {
+                        let dur = audio.duration;
+                        if(dur && dur !== Infinity) {
+                            recordSeconds = Math.floor(dur);
+                        } else {
+                            recordSeconds = 0;
+                        }
+                    });
+                } catch (err) {
+                    console.error(err);
+                    showToast("Gagal memproses file audio. File mungkin tidak didukung.", "error");
+                    resetRecorder();
+                }
                 
-                e.target.value = ''; // Reset input agar bisa upload ulang
+                e.target.value = ''; 
             });
             
             // PERUBAHAN: Memunculkan modal konfirmasi sebelum mengirim
@@ -1247,8 +1252,7 @@
                 announcementAudioUrl = null;
             }
             
-            // Pastikan stream dan context audio dimatikan
-            if (audioContext && audioContext.state !== 'closed') audioContext.close();
+            // Pastikan mic dimatikan
             if (micStream) micStream.getTracks().forEach(track => track.stop());
             
             document.getElementById('recordTimer').textContent = "00:00";
@@ -1282,35 +1286,21 @@
                 document.getElementById('btnStopRecord').classList.add('recording-active');
                 
                 const audioConstraints = {
-                    echoCancellation: false,
-                    noiseSuppression: false,
-                    autoGainControl: false,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
                     channelCount: 1
                 };
 
                 micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-                
-                // --- TRIK MANIPULASI DELAY 2 DETIK ---
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaStreamSource(micStream);
-                
-                // Buat penahan suara (Delay) maksimal 3 detik, set ke 2 detik
-                const delayNode = audioContext.createDelay(3.0);
-                delayNode.delayTime.value = 2.0; 
-                
-                const destination = audioContext.createMediaStreamDestination();
-                
-                // Sambungkan Mic -> Delay 2 Detik -> Destination
-                source.connect(delayNode);
-                delayNode.connect(destination);
 
-                let recorderOptions = { audioBitsPerSecond: 128000 };
+                let recorderOptions = {};
                 if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
                     recorderOptions.mimeType = 'audio/webm;codecs=opus';
+                    recorderOptions.audioBitsPerSecond = 64000;
                 }
 
-                // Rekam dari 'destination' yang suaranya sudah tertahan 2 detik
-                mediaRecorder = new MediaRecorder(destination.stream, recorderOptions);
+                mediaRecorder = new MediaRecorder(micStream, recorderOptions);
                 
                 mediaRecorder.ondataavailable = e => {
                     if (e.data.size > 0) {
@@ -1318,24 +1308,33 @@
                     }
                 };
                 
-                mediaRecorder.onstop = () => {
-                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    announcementAudioUrl = URL.createObjectURL(audioBlob);
+                mediaRecorder.onstop = async () => {
+                    document.getElementById('recordStatusText').textContent = "Memproses rekaman (Menambahkan jeda 1 detik)...";
+                    const rawBlob = new Blob(audioChunks, { type: 'audio/webm' });
                     
-                    const player = document.getElementById('previewAudioPlayer');
-                    player.src = announcementAudioUrl;
-                    player.classList.remove('hidden');
-                    
-                    document.getElementById('recordTimer').classList.add('hidden');
-                    document.getElementById('recordStatusText').textContent = "Pratinjau Hasil Rekaman:";
-                    
-                    document.getElementById('btnStartRecord').classList.add('hidden');
-                    document.getElementById('btnStopRecord').classList.add('hidden');
-                    document.getElementById('btnRetakeRecord').classList.remove('hidden');
-                    document.getElementById('btnBroadcastRecord').classList.remove('hidden');
+                    try {
+                        // Terapkan logika jeda 1 detik untuk hasil rekam mic
+                        audioBlob = await processAudioBlobWithSilence(rawBlob);
+                        
+                        announcementAudioUrl = URL.createObjectURL(audioBlob);
+                        const player = document.getElementById('previewAudioPlayer');
+                        player.src = announcementAudioUrl;
+                        player.classList.remove('hidden');
+                        
+                        document.getElementById('recordTimer').classList.add('hidden');
+                        document.getElementById('recordStatusText').textContent = "Pratinjau Hasil Rekaman (Ditambah 1s jeda):";
+                        
+                        document.getElementById('btnStartRecord').classList.add('hidden');
+                        document.getElementById('btnStopRecord').classList.add('hidden');
+                        document.getElementById('btnRetakeRecord').classList.remove('hidden');
+                        document.getElementById('btnBroadcastRecord').classList.remove('hidden');
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Gagal memproses rekaman.", "error");
+                        resetRecorder();
+                    }
 
-                    // Bersihkan memori audio
-                    if (audioContext && audioContext.state !== 'closed') audioContext.close();
+                    // Bersihkan memori mic
                     if (micStream) micStream.getTracks().forEach(track => track.stop());
                 };
                 
@@ -1367,14 +1366,10 @@
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 if (recordInterval) clearInterval(recordInterval);
                 document.getElementById('btnStopRecord').classList.remove('recording-active');
-                document.getElementById('recordStatusText').textContent = "Menyimpan... (Tunggu 2 detik)";
+                document.getElementById('recordStatusText').textContent = "Menyimpan...";
                 
-                // KITA HARUS MENUNGGU 2 DETIK SEBELUM MEMATIKAN REKAMAN!
-                // Mengapa? Karena suara terakhir yang baru saja Anda ucapkan masih "berjalan"
-                // di dalam efek DelayNode. Kita beri waktu 2 detik agar suara terakhir masuk ke rekaman.
-                setTimeout(() => {
-                    mediaRecorder.stop();
-                }, 2000);
+                // INSTANT STOP - Tidak perlu tunggu 2 detik karena delay dilakukan secara offline di pemrosesan
+                mediaRecorder.stop();
             }
         }
 
@@ -1417,13 +1412,13 @@
                         
                         showToast("Pengumuman berhasil dikirim dan disiarkan!", "success");
                         
-                        // Perilaku diubah: Tidak menutup modal, cukup mereset UI tombol agar bisa diputar lagi
+                        // Modal TIDAK ditutup, hanya mengembalikan tombol untuk bisa diklik ulang
                         setTimeout(() => {
                             btnBroadcast.disabled = false;
                             btnBroadcast.innerHTML = originalBtnHTML;
                             progressContainer.classList.add('hidden');
                             progressBar.style.width = '0%';
-                        }, 1000);
+                        }, 1500);
                         
                     } catch (error) {
                         console.error("Gagal kirim Database", error);
@@ -1793,6 +1788,87 @@
         function showModal(k) { document.getElementById(MODALS[k]).classList.remove('hidden'); document.getElementById(MODALS[k]).classList.add('visible'); }
         function hideModal(k) { document.getElementById(MODALS[k]).classList.remove('visible'); document.getElementById(MODALS[k]).classList.add('hidden'); }
         function showToast(m, t='info') { const e = document.createElement('div'); e.className = `toast toast-${t}`; e.textContent = m; document.getElementById('toast-container').appendChild(e); setTimeout(() => { e.classList.add('hiding'); e.addEventListener('animationend', () => e.remove()); }, 3000); }
+
+        // --- HELPER UNTUK OFFLINE AUDIO PROCESSING (TAMBAH JEDA 1 DETIK & KONVERSI WAV) ---
+        async function processAudioBlobWithSilence(blob) {
+            const arrayBuffer = await blob.arrayBuffer();
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const decodedData = await audioCtx.decodeAudioData(arrayBuffer);
+
+            const silenceSeconds = 1.0;
+            const sampleRate = 22050; // Hemat ukuran file (22.05kHz) agar muat dikirim
+            const channels = 1; // Force Mono
+            const totalSamples = Math.ceil((decodedData.duration + silenceSeconds) * sampleRate);
+
+            const offlineCtx = new OfflineAudioContext(channels, totalSamples, sampleRate);
+
+            const source = offlineCtx.createBufferSource();
+            
+            // Mixdown ke mono jika sumber audio adalah stereo (seperti mp3 lagu)
+            if (decodedData.numberOfChannels > 1) {
+                const monoBuffer = offlineCtx.createBuffer(1, decodedData.length, decodedData.sampleRate);
+                const monoData = monoBuffer.getChannelData(0);
+                const left = decodedData.getChannelData(0);
+                const right = decodedData.getChannelData(1);
+                for (let i = 0; i < decodedData.length; i++) {
+                    monoData[i] = (left[i] + right[i]) / 2;
+                }
+                source.buffer = monoBuffer;
+            } else {
+                source.buffer = decodedData;
+            }
+            
+            source.connect(offlineCtx.destination);
+            // Geser waktu putar mundur sebanyak 1 detik (1.0 sec)
+            source.start(silenceSeconds); 
+
+            const renderedBuffer = await offlineCtx.startRendering();
+            return audioBufferToWav(renderedBuffer);
+        }
+
+        // Pengonversi AudioBuffer ke format WAV standar
+        function audioBufferToWav(buffer) {
+            const numOfChan = buffer.numberOfChannels;
+            const length = buffer.length * numOfChan * 2 + 44;
+            const bufferArray = new ArrayBuffer(length);
+            const view = new DataView(bufferArray);
+            const channels = [];
+            let offset = 0, pos = 0;
+
+            function setUint16(data) { view.setUint16(pos, data, true); pos += 2; }
+            function setUint32(data) { view.setUint32(pos, data, true); pos += 4; }
+
+            // Menulis Header WAV
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8);
+            setUint32(0x45564157); // "WAVE"
+            setUint32(0x20746d66); // "fmt "
+            setUint32(16);
+            setUint16(1); // Format PCM
+            setUint16(numOfChan);
+            setUint32(buffer.sampleRate);
+            setUint32(buffer.sampleRate * 2 * numOfChan);
+            setUint16(numOfChan * 2);
+            setUint16(16); // 16-bit
+            setUint32(0x61746164); // "data"
+            setUint32(length - pos - 4);
+
+            for(let i = 0; i < buffer.numberOfChannels; i++) {
+                channels.push(buffer.getChannelData(i));
+            }
+
+            while(pos < length) {
+                for(let i = 0; i < numOfChan; i++) {
+                    let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(pos, sample, true);
+                }
+                offset++;
+            }
+            
+            // Hasilkan file .wav
+            return new Blob([bufferArray], {type: "audio/wav"});
+        }
     </script>
 </body>
 </html>
