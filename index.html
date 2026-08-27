@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=0.87, maximum-scale=2.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=0.75, maximum-scale=2.0, user-scalable=no">
     <title>WEB REMOTE - SMPN 2 PAJANGAN</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -1618,7 +1618,13 @@
             // TAB: ATUR JADWAL
             document.getElementById('tab-content-jadwal').innerHTML = `
                 <div class="mb-6">
-                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Atur Jadwal</h4>
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-semibold text-slate-800">Atur Jadwal</h4>
+                        <button id="btnKosongkanJadwal" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-bold border border-red-200 transition-all shadow-sm flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Kosongkan Jadwal
+                        </button>
+                    </div>
                     <div class="shadow-sm flex flex-col gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <select id="jadwalTemplateSelect" class="w-full bg-white border border-slate-300 p-3 sm:p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200 text-sm"></select>
                         <select id="jadwalDaySelect" class="w-full bg-white border border-slate-300 p-3 sm:p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200 text-sm"></select>
@@ -1630,6 +1636,29 @@
                         <tbody></tbody>
                     </table>
                 </div>`;
+
+            // Logika Tombol Kosongkan Jadwal (Ditaruh di luar fungsi onchange)
+            document.getElementById('btnKosongkanJadwal').onclick = () => {
+                const t = document.getElementById('jadwalTemplateSelect').value; 
+                const d = document.getElementById('jadwalDaySelect').value;
+                
+                if (confirm(`Apakah Anda yakin ingin mengosongkan semua jadwal untuk ${d} (${t.replace(/_/g, ' ')})?`)) {
+                    if (t === 'JADWAL_KHUSUS') {
+                        const khusus = jadwalKhusus.find(x => x.nama === d);
+                        if (khusus) khusus.jadwal = {}; 
+                    } else {
+                        if (masterJadwal[t] && masterJadwal[t][d]) {
+                            masterJadwal[t][d] = {}; 
+                        }
+                    }
+                    
+                    saveConfig(); 
+                    renderJadwalTable(); 
+                    showToast(`Jadwal ${d} berhasil dikosongkan.`, 'success'); 
+                }
+            };
+
+            // Logika Onchange Tabel Jadwal
             document.querySelector('#jadwalTable tbody').onchange = (e) => { 
                 if(e.target.tagName==='SELECT') {
                     const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value;
@@ -1652,6 +1681,7 @@
                     }
                 }
             };
+
             
             document.getElementById('editHariForm').onsubmit = e => { e.preventDefault(); const i = document.getElementById('editHariIndex').value; jadwalKhusus[i].nama = document.getElementById('editHariInput').value; saveConfig(); renderHariList(); hideModal('editHari'); };
             document.getElementById('confirmDeleteHariBtn').onclick = e => { jadwalKhusus.splice(e.target.dataset.deleteIndex, 1); saveConfig(); renderHariList(); hideModal('deleteHari'); };
