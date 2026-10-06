@@ -143,11 +143,7 @@
                 }, 600);
             }
             
-            document.getElementById('btnFullscreen').onclick = () => {
-                if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-                else if (document.exitFullscreen) document.exitFullscreen();
-            };
-        });
+                    });
 
         function startApp() {
             document.getElementById('bottom-nav').classList.remove('hidden'); initMobileNav(); initPWA();
@@ -429,7 +425,7 @@
             const { effectiveDayName, isOverride } = getActiveInfo(); 
             jadwalUtama.forEach(d => { 
                 const b = document.createElement('button'); 
-                b.className = 'btn btn-day flex-none flex items-center justify-center text-center whitespace-nowrap lg:whitespace-normal text-sm font-bold px-4 py-2.5 lg:w-full lg:py-1.5'; 
+                b.className = 'btn btn-day flex-none max-w-full flex items-center justify-center text-center whitespace-normal text-sm font-bold px-4 py-2.5 lg:w-full lg:py-1.5'; 
                 b.textContent = d; 
                 if (d === effectiveDayName && !isOverride) b.classList.add('active'); 
                 c.appendChild(b); 
@@ -1328,8 +1324,8 @@
                 else if (clean.length === 3) this.value = '0' + clean.slice(0,1) + ':' + clean.slice(1);
             });
         }
-        function showModal(k) { const el = document.getElementById(MODALS[k]); el.classList.remove('hidden'); void el.offsetWidth; el.classList.add('visible'); }
-        function hideModal(k) { const el = document.getElementById(MODALS[k]); el.classList.remove('visible'); setTimeout(() => { if (!el.classList.contains('visible')) el.classList.add('hidden'); }, 280); }
+        function showModal(k) { document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); const el = document.getElementById(MODALS[k]); el.classList.remove('hidden'); void el.offsetWidth; el.classList.add('visible'); }
+        function hideModal(k) { const el = document.getElementById(MODALS[k]); el.classList.remove('visible'); setTimeout(() => { if (!el.classList.contains('visible')) el.classList.add('hidden'); if (!document.querySelector('.modal-backdrop.visible')) { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); } }, 280); }
         function showToast(m, t='info') { const e = document.createElement('div'); e.className = `toast toast-${t}`; e.textContent = m; document.getElementById('toast-container').appendChild(e); setTimeout(() => { e.classList.add('hiding'); e.addEventListener('animationend', () => e.remove()); }, 3000); }
     
 
@@ -1425,28 +1421,33 @@
         initPickers();
 
         // ===================== PWA =====================
-        let deferredInstall = null, appReady = false;
+        let deferredInstall = null, appReady = false, bannerOpen = false;
         const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
         const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         function installDismissed() { try { return Date.now() - Number(localStorage.getItem('installDismissedAt') || 0) < 7 * 864e5; } catch (e) { return false; } }
-        function hideInstall() { document.getElementById('installBanner').classList.add('hidden'); }
-        function maybeShowInstall() {
-            if (!appReady || isStandalone() || installDismissed()) return;
-            const banner = document.getElementById('installBanner'), btn = document.getElementById('installBtn'), hint = document.getElementById('installHint');
+        function canInstall() { return appReady && !isStandalone() && (!!deferredInstall || isIOS()); }
+        function updateInstallTop() { const t = document.getElementById('btnInstallTop'); if (t) t.classList.toggle('hidden', !(canInstall() && !bannerOpen)); }
+        function openInstallBanner() {
+            if (!canInstall()) return;
+            const btn = document.getElementById('installBtn'), hint = document.getElementById('installHint');
             if (deferredInstall) { btn.classList.remove('hidden'); hint.textContent = 'Buka cepat dari layar utama HP.'; }
-            else if (isIOS()) { btn.classList.add('hidden'); hint.textContent = 'Ketuk tombol Bagikan, lalu pilih "Tambah ke Layar Utama".'; }
-            else return;
-            banner.classList.remove('hidden');
+            else { btn.classList.add('hidden'); hint.textContent = 'Ketuk tombol Bagikan, lalu pilih "Tambah ke Layar Utama".'; }
+            document.getElementById('installBanner').classList.remove('hidden'); bannerOpen = true; updateInstallTop();
+        }
+        function closeInstallBanner(remember) {
+            document.getElementById('installBanner').classList.add('hidden'); bannerOpen = false;
+            if (remember) { try { localStorage.setItem('installDismissedAt', String(Date.now())); } catch (e) {} }
+            updateInstallTop();
+        }
+        function maybeShowInstall() { if (canInstall() && !installDismissed()) openInstallBanner(); else updateInstallTop(); }
+        async function doInstall() {
+            if (!deferredInstall) { openInstallBanner(); return; }
+            deferredInstall.prompt(); await deferredInstall.userChoice.catch(() => {}); deferredInstall = null; closeInstallBanner(false);
         }
         window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredInstall = e; maybeShowInstall(); });
-        window.addEventListener('appinstalled', () => { deferredInstall = null; hideInstall(); });
-        document.getElementById('installBtn').addEventListener('click', async () => {
-            if (!deferredInstall) return;
-            deferredInstall.prompt(); await deferredInstall.userChoice.catch(() => {}); deferredInstall = null; hideInstall();
-        });
-        document.getElementById('installClose').addEventListener('click', () => { hideInstall(); try { localStorage.setItem('installDismissedAt', String(Date.now())); } catch (e) {} });
-        function initPWA() {
-            appReady = true; maybeShowInstall();
-            if (isStandalone()) { const f = document.getElementById('btnFullscreen'); if (f) f.classList.add('hidden'); }
-        }
+        window.addEventListener('appinstalled', () => { deferredInstall = null; closeInstallBanner(false); });
+        document.getElementById('installBtn').addEventListener('click', doInstall);
+        document.getElementById('btnInstallTop').addEventListener('click', doInstall);
+        document.getElementById('installClose').addEventListener('click', () => closeInstallBanner(true));
+        function initPWA() { appReady = true; maybeShowInstall(); }
         if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW gagal:', err)));
