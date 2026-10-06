@@ -144,3 +144,9 @@ button, .btn { -webkit-tap-highlight-color: transparent; -webkit-user-select: no
 .install-go.hidden { display: none; }
 .install-x { color: #94a3b8; font-size: 1.5rem; line-height: 1; padding: .25rem .5rem; min-height: 40px; }
 @media (min-width: 1024px) { .install-banner { left: auto; right: 1rem; bottom: 1rem; width: 24rem; } }
+
+/* ===== Perbaikan modal di HP: kunci scroll latar & sembunyikan nav/banner ===== */
+html.modal-open, body.modal-open { overflow: hidden; }
+body.modal-open .mobile-nav, body.modal-open .install-banner { visibility: hidden; }
+.modal-backdrop .overflow-y-auto, .modal-backdrop .custom-scroll { overscroll-behavior: contain; }
+@media (max-width: 767.98px) { #settingsModal > .card { height: 90vh; height: 90svh; } }
