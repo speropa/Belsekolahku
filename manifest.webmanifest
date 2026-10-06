@@ -1,0 +1,16 @@
+{
+  "name": "Web Remote Bel - SMPN 2 Pajangan",
+  "short_name": "Bel Sekolah",
+  "description": "Remote bel sekolah otomatis SMPN 2 Pajangan",
+  "lang": "id",
+  "start_url": "./",
+  "scope": "./",
+  "id": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#334155",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "ikonpwabelsperopa.jpg", "sizes": "192x192 512x512", "type": "image/jpeg", "purpose": "any" }
+  ]
+}
