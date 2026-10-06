@@ -1,5 +1,5 @@
 // Service worker Bel Sekolah. Naikkan nomor VERSION setiap kali Anda mengubah file aplikasi.
-const VERSION = 'belsperopa-v1';
+const VERSION = 'belsperopa-v2';
 const SHELL = ['./', 'index.html', 'styles.css', 'app.js', 'manifest.webmanifest', 'ikonpwabelsperopa.jpg'];
 const CDN_HOSTS = ['cdn.tailwindcss.com', 'www.gstatic.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'raw.githubusercontent.com'];
 
