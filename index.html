@@ -65,8 +65,9 @@
             </div>
         </div>
         <div class="flex gap-3">
-             <button id="btnFullscreen" class="text-slate-400 hover:text-white" title="Fullscreen">
-                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+             <button id="btnInstallTop" type="button" class="hidden inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-[11px] sm:text-xs px-3 py-1.5 min-h-[32px] rounded-full" title="Pasang aplikasi" aria-label="Pasang aplikasi">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
+                <span>Pasang</span>
             </button>
             <div id="now-playing-ticker" class="font-mono text-orange-300 truncate max-w-[100px] sm:max-w-xs text-right hidden sm:block">Ready</div>
         </div>
@@ -130,7 +131,7 @@
                 <div id="jadwalKhususCard" class="card flex flex-col lg:flex-1 lg:min-h-0">
                     <div class="bg-white border-b border-slate-200 p-2 text-center text-slate-600 font-bold text-[11px] uppercase tracking-wider flex-none">Jadwal Khusus</div>
                     <div class="p-2 bg-slate-50/50 flex flex-col flex-1 lg:min-h-0 overflow-hidden">
-                        <div id="jadwalKhususContainer" class="flex overflow-x-auto hide-scroll snap-x lg:flex lg:flex-col lg:content-start gap-1.5 lg:overflow-y-auto custom-scroll flex-1 pb-1"></div>
+                        <div id="jadwalKhususContainer" class="flex flex-wrap lg:flex-nowrap lg:flex-col lg:content-start gap-1.5 lg:overflow-y-auto custom-scroll flex-1 pb-1"></div>
                     </div>
                 </div>
                 
