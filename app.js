@@ -1,5 +1,4 @@
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
         import { getDatabase, ref, set, onValue, get } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js";
 
@@ -242,6 +241,8 @@
 
         async function saveConfig() {
             if(!auth.currentUser) return;
+            // Jangan menimpa server memakai data basi bila HP sedang offline.
+            if(!firebaseConnected) { showToast('HP tidak terhubung internet. Perubahan tidak disimpan.', 'error'); return; }
             
             // ANTI MENTAL BUGS:
             // Pastikan timestamp web lebih baru daripada yg ada di Firebase (memaksa sinkronisasi dengan desktop app)
@@ -292,7 +293,7 @@
             document.getElementById('time').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
             document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             
-            checkJadwalMendatang(todayStr);
+            if (isDataLoaded) checkJadwalMendatang(todayStr); // jangan tandai hari 'sudah dicek' sebelum data server tiba
             updateCountdown(now);
             
             const minKey = now.getHours() + ':' + now.getMinutes();
