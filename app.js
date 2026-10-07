@@ -17,6 +17,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         const db = getDatabase(app);
 
         // --- GLOBAL VARIABLES ---
+        const ownWrites = new Set(); // cap waktu perubahan yang kita tulis sendiri (mengenali gema Firebase)
         let currentFirebaseTS = 0; // MENYIMPAN TIMESTAMP TERAKHIR FIREBASE (UNTUK ANTI MENTAL/BOUNCE)
         let masterJam = [], masterBel = [], jadwalKhusus = [], masterJadwal = {};
         let jadwalMendatang = [];
@@ -194,6 +195,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 if(data.lastUpdated) {
                     currentFirebaseTS = new Date(data.lastUpdated).getTime();
                 }
+                // Gema dari perubahan yang baru kita simpan sendiri: data di memori sudah sama, tidak perlu render ulang
+                if (isDataLoaded && currentFirebaseTS && ownWrites.has(currentFirebaseTS)) return;
 
                 masterJam = ensureArray(data.masterJam);
                 if (data.masterBel) {
@@ -228,8 +231,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     scheduleNextBell();
                 }
                 renderAll();
-                if(document.querySelector('#jadwalTable tbody')) renderJadwalTable(); 
+                refreshSettingsIfOpen(); // perubahan dari desktop/perangkat lain ikut tampil di Pengaturan yang sedang terbuka
             });
+        }
+
+        function refreshSettingsIfOpen() {
+            const m = document.getElementById('settingsModal');
+            if (!m || !m.classList.contains('visible')) return;
+            try {
+                renderHariList(); renderJamList(); renderBelList(); renderJadwalMendatangList();
+                const t = document.getElementById('jadwalTemplateSelect'), d = document.getElementById('jadwalDaySelect');
+                if (t && d) {
+                    const keepD = d.value;
+                    const names = (t.value === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama;
+                    d.innerHTML = names.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+                    if (names.includes(keepD)) d.value = keepD;
+                    renderJadwalTable();
+                }
+            } catch (e) { console.error('Gagal menyegarkan pengaturan:', e); }
         }
 
         function listenAvailableSounds() {
@@ -251,6 +270,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 newTS = currentFirebaseTS + 1000;
             }
             const newTimeStr = new Date(newTS).toISOString();
+            ownWrites.add(newTS); if (ownWrites.size > 50) ownWrites.delete(ownWrites.values().next().value);
 
             const data = { 
                 masterJam, masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, 
