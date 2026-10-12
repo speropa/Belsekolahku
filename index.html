@@ -17,7 +17,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://raw.githubusercontent.com" crossorigin>
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://securetoken.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://bel-sekolah-5ab64-default-rtdb.firebaseio.com" crossorigin>
+    <link rel="modulepreload" href="app.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/12.18.0/firebase-database.js">
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -50,21 +56,21 @@
         </div>
     </div>
 
-    <div id="server-status-bar" class="flex-none bg-slate-900 text-white text-[11px] sm:text-xs py-2 px-3 sm:px-4 flex justify-between items-center z-50 shadow-md sticky top-0">
-        <div class="flex items-center gap-3 sm:gap-6">
+    <div id="server-status-bar" class="flex-none bg-slate-900 text-white text-[11px] sm:text-xs py-2 px-3 sm:px-4 flex justify-between items-center gap-2 z-50 shadow-md sticky top-0 min-w-0 w-full overflow-hidden">
+        <div class="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
             <span class="font-extrabold text-orange-400 tracking-wider hidden sm:inline">WEB REMOTE</span>
             <span class="font-extrabold text-orange-400 tracking-wider sm:hidden">REMOTE</span>
             
-            <div class="flex items-center gap-2 sm:gap-3 border-l border-slate-700 pl-3 sm:pl-4">
-                <div class="flex flex-col">
+            <div class="flex items-center gap-2 sm:gap-3 border-l border-slate-700 pl-3 sm:pl-4 min-w-0">
+                <div class="flex flex-col min-w-0">
                     <span class="text-slate-400 text-[11px] uppercase leading-none">Server Sekolah:</span>
-                    <span id="desktop-status-text" class="font-mono text-gray-400 font-bold max-w-[55vw] sm:max-w-none sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[11px] sm:text-xs">
+                    <span id="desktop-status-text" class="font-mono text-gray-400 font-bold min-w-0 max-w-full sm:max-w-[350px] flex items-center gap-1.5 mt-0.5 text-[11px] sm:text-xs">
                         <span class="w-2 h-2 rounded-full bg-gray-500 flex-shrink-0"></span> <span class="truncate">Memeriksa...</span>
                     </span>
                 </div>
             </div>
         </div>
-        <div class="flex gap-3">
+        <div class="flex gap-3 items-center min-w-0 flex-none max-w-[48%] sm:max-w-[60%]">
              <button id="btnInstallTop" type="button" class="hidden inline-flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold text-[11px] sm:text-xs px-3 py-1.5 min-h-[32px] rounded-full" title="Pasang aplikasi" aria-label="Pasang aplikasi">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4"/></svg>
                 <span>Pasang</span>
