@@ -75,59 +75,92 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         document.addEventListener('DOMContentLoaded', () => {
             const hardcodedEmail = "speropa@gmail.com";
             const hardcodedPassword = "Pajangan201184*";
+            const PIN_CACHE_KEY = 'belPinHash';
+            const pinInput = document.getElementById('pin');
+            const statusText = document.getElementById('login-status');
 
-            signInWithEmailAndPassword(auth, hardcodedEmail, hardcodedPassword)
-                .then(() => {
-                    document.getElementById('loading-spinner').classList.add('hidden');
-                    document.getElementById('login-page').classList.remove('hidden');
-                    const pinInput = document.getElementById('pin');
-                    setTimeout(() => { pinInput.focus(); }, 150);
-                })
-                .catch(err => {
-                    document.getElementById('loading-spinner').classList.add('hidden');
-                    document.getElementById('login-page').classList.remove('hidden');
-                    console.error("Auth fail:", err);
-                });
+            // Layar PIN tampil seketika; koneksi ke server berjalan di latar belakang.
+            document.getElementById('loading-spinner').classList.add('hidden');
+            document.getElementById('login-page').classList.remove('hidden');
+            setTimeout(() => { pinInput.focus(); }, 50);
+
+            // Login Firebase: pakai sesi tersimpan bila ada (tanpa jaringan), kalau tidak baru login.
+            let authPromise = null;
+            function ensureAuth() {
+                if (!authPromise) {
+                    authPromise = (async () => {
+                        try { if (auth.authStateReady) await auth.authStateReady(); } catch (e) {}
+                        if (!auth.currentUser) await signInWithEmailAndPassword(auth, hardcodedEmail, hardcodedPassword);
+                        return true;
+                    })().catch(err => { authPromise = null; throw err; });
+                }
+                return authPromise;
+            }
+            // PIN dari server diambil lebih awal (sambil pengguna mengetik), bukan setelah 6 digit selesai.
+            let pinFetch = null;
+            function fetchServerPin() {
+                if (!pinFetch) {
+                    pinFetch = ensureAuth().then(() => get(ref(db, 'login/pin'))).then(s => s.exists() ? String(s.val()) : null)
+                        .catch(err => { pinFetch = null; throw err; });
+                }
+                return pinFetch;
+            }
+            // PIN yang pernah benar disimpan sebagai hash di perangkat ini -> pemeriksaan berikutnya instan.
+            async function hashPin(p) {
+                try {
+                    if (window.crypto && crypto.subtle) {
+                        const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('belsperopa:' + p));
+                        return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2, '0')).join('');
+                    }
+                } catch (e) {}
+                return null;
+            }
+            function getCachedHash() { try { return localStorage.getItem(PIN_CACHE_KEY); } catch (e) { return null; } }
+            function setCachedHash(h) { try { if (h) localStorage.setItem(PIN_CACHE_KEY, h); } catch (e) {} }
+            function clearCachedHash() { try { localStorage.removeItem(PIN_CACHE_KEY); } catch (e) {} }
+
+            ensureAuth().then(fetchServerPin).catch(err => console.error('Auth/PIN awal gagal:', err));
+
+            function enterApp(hash, verifyInBackground) {
+                statusText.textContent = 'Berhasil!';
+                statusText.classList.replace('text-orange-500', 'text-green-500');
+                document.getElementById('login-page').classList.add('hidden');
+                document.getElementById('main-app').classList.remove('hidden');
+                ensureAuth().then(() => startApp()).catch(err => { console.error(err); showToast('Gagal terhubung ke server. Muat ulang halaman.', 'error'); });
+                // Bila PIN di server ternyata sudah diganti, cache dibuang dan layar PIN muncul lagi.
+                if (verifyInBackground) fetchServerPin().then(async sp => {
+                    if (sp === null) return;
+                    const h = await hashPin(sp);
+                    if (h && h !== hash) { clearCachedHash(); location.reload(); }
+                }).catch(() => {});
+            }
 
             document.getElementById('login-page').addEventListener('click', () => {
-                const pinInput = document.getElementById('pin');
                 if (!pinInput.disabled) { pinInput.focus(); }
             });
 
-            const pinInput = document.getElementById('pin');
-            const statusText = document.getElementById('login-status');
-            
-            pinInput.addEventListener('input', async (e) => {
+            pinInput.addEventListener('input', async () => {
                 pinInput.value = pinInput.value.replace(/[^0-9]/g, '');
                 pinInput.classList.remove('error-shake');
                 statusText.textContent = "Menunggu input...";
                 statusText.className = "text-slate-500 text-sm mt-4 text-center font-medium h-5 transition-all";
-                
-                if (pinInput.value.length === 6) {
-                    pinInput.disabled = true;
-                    statusText.textContent = "Memeriksa...";
-                    statusText.classList.replace('text-slate-500', 'text-orange-500');
-                    
-                    try {
-                        const snap = await get(ref(db, 'login/pin'));
-                        if(snap.exists() && snap.val().toString() === pinInput.value) {
-                            statusText.textContent = "Berhasil!";
-                            statusText.classList.replace('text-orange-500', 'text-green-500');
-                            setTimeout(() => {
-                                document.getElementById('login-page').classList.add('hidden');
-                                document.getElementById('main-app').classList.remove('hidden');
-                                startApp();
-                            }, 500);
-                        } else {
-                            triggerPinError();
-                        }
-                    } catch(err) { 
-                        console.error(err); 
-                        triggerPinError("Koneksi gagal.");
-                    }
+                if (pinInput.value.length !== 6) return;
+
+                const entered = pinInput.value;
+                pinInput.disabled = true;
+                statusText.textContent = "Memeriksa...";
+                statusText.classList.replace('text-slate-500', 'text-orange-500');
+                try {
+                    const h = await hashPin(entered), cached = getCachedHash();
+                    if (h && cached && h === cached) { enterApp(h, true); return; } // cocok dengan cache: langsung masuk
+                    const sp = await fetchServerPin();
+                    if (sp !== null && sp === entered) { setCachedHash(h); enterApp(h, false); }
+                    else triggerPinError();
+                } catch (err) {
+                    console.error(err);
+                    triggerPinError("Koneksi gagal.");
                 }
             });
-
             function triggerPinError(msg = "PIN salah!") {
                 statusText.textContent = msg;
                 statusText.classList.replace('text-orange-500', 'text-red-500');
@@ -497,7 +530,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             const container = document.getElementById('jadwalMendatangWidget');
             const todayStr = getTodayDateString();
             
-            const upcoming = jadwalMendatang.filter(j => j.date >= todayStr).sort((a,b) => a.date.localeCompare(b.date));
+            const upcoming = jadwalMendatang.filter(j => mendatangEnd(j) >= todayStr).sort((a,b) => a.date.localeCompare(b.date));
             
             // JIKA JADWAL MENDATANG KOSONG, SEMBUNYIKAN KARTUNYA
             if (upcoming.length === 0) {
@@ -515,7 +548,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             container.innerHTML = upcoming.map(j => {
                 const dateObj = parseLocalDate(j.date);
                 
-                const isToday = j.date === todayStr;
+                const isToday = mendatangInRange(j, todayStr);
                 
                 return `
                 <div class="flex-none lg:w-full flex justify-between items-center p-2 mb-1.5 rounded-md border bg-white border-slate-200 shadow-sm ${isToday ? 'border-blue-400 ring-1 ring-blue-100' : ''} min-w-[200px] lg:min-w-0">
@@ -1028,7 +1061,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     </button>
                 </div>
                 <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm text-blue-800 mb-6">
-                    Pilih tanggal, lalu atur <b>Jadwal 1</b>, <b>Jadwal 2</b>, atau keduanya. Jadwal 1 bisa berupa jadwal khusus (1 hari) atau ganti template (permanen sejak tanggal itu); Jadwal 2 hanya berlaku 1 hari. Bagian yang tidak diatur tetap otomatis (Jadwal 1 mengikuti hari saat itu). Jika tanggal sudah lewat, jadwal menjadi usang (abu-abu).
+                    Pilih tanggal, lalu atur <b>Jadwal 1</b>, <b>Jadwal 2</b>, atau keduanya. Isi "Sampai Tanggal" bila ingin berlaku beberapa hari berturut-turut (mis. 2–3 hari). Jadwal 1 bisa berupa jadwal khusus atau ganti template (permanen sejak tanggal mulai); Jadwal 2 hanya berlaku selama rentang yang Anda pilih. Bagian yang tidak diatur tetap otomatis (Jadwal 1 mengikuti hari saat itu). Jika tanggal sudah lewat, jadwal menjadi usang (abu-abu).
                 </div>
                 <div id="mendatangListContainer" class="space-y-3"></div>
             `;
@@ -1082,7 +1115,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     showModal('formMendatang');
                 } else if (target.classList.contains('delete-mendatang-btn')) {
                     const dateObj = parseLocalDate(item.date);
-                    document.getElementById('deleteMendatangText').innerHTML = `Hapus jadwal mendatang <strong>${esc(mendatangTitle(item))}</strong> pada tanggal ${dateObj.toLocaleDateString('id-ID')}?`;
+                    document.getElementById('deleteMendatangText').innerHTML = `Hapus jadwal mendatang <strong>${esc(mendatangTitle(item))}</strong> pada ${esc(mendatangRangeText(item))}?`;
                     document.getElementById('confirmDeleteMendatangBtn').dataset.id = id;
                     showModal('deleteMendatang');
                 }
@@ -1134,10 +1167,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             const sorted = [...jadwalMendatang].sort((a,b) => a.date.localeCompare(b.date));
 
             container.innerHTML = sorted.map(j => {
-                const isPast = j.date < todayStr;
-                const isToday = j.date === todayStr;
+                const isPast = mendatangEnd(j) < todayStr;
+                const isToday = mendatangInRange(j, todayStr);
                 const dateObj = parseLocalDate(j.date);
-                const displayDate = dateObj.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                const displayDate = mendatangRangeText(j);
                 
                 let bgClass = "bg-white border-slate-200";
                 let textClass = "text-slate-800";
@@ -1765,17 +1798,28 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         }
 
         // ---------- Jadwal Mendatang: atur Jadwal 1, Jadwal 2, atau keduanya ----------
-        // Jadwal 1: 'khusus' (hanya 1 hari) atau 'template' (ganti template permanen dari tanggal itu).
-        // Jadwal 2: hanya berlaku 1 hari pada tanggal itu. Yang tidak diatur tetap otomatis (Jadwal 1 mengikuti hari).
+        // Jadwal 1: 'khusus' (selama rentang tanggal) atau 'template' (ganti template permanen dari tanggal mulai).
+        // Jadwal 2: berlaku selama rentang tanggal (default 1 hari), lalu mati. Yang tidak diatur tetap otomatis (Jadwal 1 mengikuti hari).
         function secondDaysFor(tv) { return tv === 'KHUSUS' ? jadwalKhusus.map(j => j.nama) : jadwalUtama; }
         function secondLabel(sec) { return sec.isKhusus ? ('Khusus: ' + sec.day) : (sec.template + ' \u2022 ' + sec.day); }
         function mendatangSec(j) { return (j && j.second && j.second.day) ? j.second : null; }
         function mendatangHasPrimary(j) { return !!(j && j.type && j.value); }
+        function mendatangEnd(j) { return (j && j.endDate && j.endDate > j.date) ? j.endDate : j.date; }
+        function mendatangInRange(j, d) { return d >= j.date && d <= mendatangEnd(j); }
+        function mendatangDateObj(s) { const p = String(s).split('-').map(Number); return new Date(p[0], (p[1] || 1) - 1, p[2] || 1); }
+        function mendatangDays(j) { return Math.round((mendatangDateObj(mendatangEnd(j)) - mendatangDateObj(j.date)) / 86400000) + 1; }
+        function mendatangRangeText(j) {
+            const o = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+            const a = mendatangDateObj(j.date).toLocaleDateString('id-ID', o);
+            if (mendatangEnd(j) === j.date) return a;
+            return a + ' s/d ' + mendatangDateObj(mendatangEnd(j)).toLocaleDateString('id-ID', o) + ' (' + mendatangDays(j) + ' hari)';
+        }
         function mendatangTitle(j) { if (mendatangHasPrimary(j)) return j.value; const s = mendatangSec(j); return s ? secondLabel(s) : '-'; }
         function mendatangBadges(j) {
             const a = [];
-            if (mendatangHasPrimary(j)) a.push(j.type === 'khusus' ? '\u2605 Jadwal 1: Khusus (1 hari)' : '\uD83D\uDD04 Jadwal 1: Ganti Template');
+            if (mendatangHasPrimary(j)) a.push(j.type === 'khusus' ? '\u2605 Jadwal 1: Khusus' : '\uD83D\uDD04 Jadwal 1: Ganti Template');
             const s = mendatangSec(j); if (s) a.push('\u2795 Jadwal 2: ' + secondLabel(s));
+            if (mendatangEnd(j) > j.date) a.push('\uD83D\uDCC5 ' + mendatangDays(j) + ' hari');
             return a.join(' \u00B7 ');
         }
         function mendatangTypeLabel(j) {
@@ -1786,10 +1830,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         }
         function mendatangDetailHtml(j) {
             let h = '';
-            if (mendatangHasPrimary(j)) h += '<p class="text-sm font-semibold text-slate-600 mt-1">\u2192 Jadwal 1: ' + (j.type === 'khusus' ? 'Khusus (1 hari) \u2013 ' : 'Ganti template \u2013 ') + esc(j.value) + '</p>';
+            if (mendatangHasPrimary(j)) h += '<p class="text-sm font-semibold text-slate-600 mt-1">\u2192 Jadwal 1: ' + (j.type === 'khusus' ? 'Khusus \u2013 ' : 'Ganti template \u2013 ') + esc(j.value) + '</p>';
             else h += '<p class="text-xs text-slate-500 mt-1">Jadwal 1: otomatis sesuai hari</p>';
             const s = mendatangSec(j);
-            if (s) h += '<p class="text-xs font-bold text-indigo-600 mt-0.5">+ Jadwal 2 (1 hari): ' + esc(secondLabel(s)) + '</p>';
+            if (s) h += '<p class="text-xs font-bold text-indigo-600 mt-0.5">+ Jadwal 2: ' + esc(secondLabel(s)) + '</p>';
             return h;
         }
         function updateMendatangOptions() {
@@ -1820,18 +1864,28 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 '<div class="rounded-lg border border-slate-200 bg-slate-50 p-3">' +
                     '<label class="flex items-start gap-2 font-semibold text-slate-700 cursor-pointer"><input type="checkbox" id="mendatangPrimaryOn" class="mt-1 w-4 h-4"> <span>Atur Jadwal 1 (utama)<br><span class="text-xs font-normal text-slate-500">Jika tidak dicentang, Jadwal 1 tetap otomatis mengikuti hari.</span></span></label>' +
                     '<div id="mendatangPrimaryFields" class="hidden mt-3 space-y-2">' +
-                        '<select id="mendatangType" class="' + cls + '"><option value="khusus">Terapkan Jadwal Khusus (Hanya 1 Hari)</option><option value="template">Ubah Template Utama (Permanen dari tgl tsb)</option></select>' +
+                        '<select id="mendatangType" class="' + cls + '"><option value="khusus">Terapkan Jadwal Khusus (Selama Rentang Tanggal)</option><option value="template">Ubah Template Utama (Permanen dari tgl tsb)</option></select>' +
                         '<select id="mendatangValue" class="' + cls + '"></select>' +
                     '</div>' +
                 '</div>' +
                 '<div class="rounded-lg border border-slate-200 bg-slate-50 p-3">' +
-                    '<label class="flex items-start gap-2 font-semibold text-slate-700 cursor-pointer"><input type="checkbox" id="mendatangSecondOn" class="mt-1 w-4 h-4"> <span>Atur Jadwal 2<br><span class="text-xs font-normal text-slate-500">Hanya berlaku 1 hari pada tanggal tersebut, lalu otomatis mati.</span></span></label>' +
+                    '<label class="flex items-start gap-2 font-semibold text-slate-700 cursor-pointer"><input type="checkbox" id="mendatangSecondOn" class="mt-1 w-4 h-4"> <span>Atur Jadwal 2<br><span class="text-xs font-normal text-slate-500">Hanya berlaku pada tanggal/rentang tersebut, lalu otomatis mati.</span></span></label>' +
                     '<div id="mendatangSecondFields" class="hidden mt-3 space-y-2">' +
                         '<select id="mendatangSecondTemplate" class="' + cls + '"></select>' +
                         '<select id="mendatangSecondDay" class="' + cls + '"></select>' +
                     '</div>' +
                 '</div>';
             holder.appendChild(div);
+            const rng = document.createElement('div');
+            rng.id = 'mendatangRangeWrap';
+            rng.innerHTML =
+                '<label class="block text-sm font-semibold text-slate-700 mb-1">Sampai Tanggal (opsional)</label>' +
+                '<input type="date" id="mendatangEndDate" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none">' +
+                '<p class="text-xs text-slate-500 mt-1">Kosongkan jika hanya 1 hari. Rentang (mis. 2\u20133 hari berturut-turut) berlaku untuk Jadwal Khusus dan Jadwal 2. Ganti Template tetap permanen sejak tanggal mulai.</p>';
+            holder.insertBefore(rng, div);
+            const sd = document.getElementById('mendatangDate');
+            const firstLabel = holder.querySelector('label'); if (firstLabel) firstLabel.textContent = 'Tanggal Mulai';
+            sd.addEventListener('change', () => { const e = document.getElementById('mendatangEndDate'); e.min = sd.value || ''; if (e.value && sd.value && e.value < sd.value) e.value = ''; });
             document.getElementById('mendatangPrimaryOn').onchange = syncMendatangUI;
             document.getElementById('mendatangSecondOn').onchange = syncMendatangUI;
             document.getElementById('mendatangType').onchange = updateMendatangOptions;
@@ -1850,6 +1904,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             tp.innerHTML = [...templates, 'KHUSUS'].map(v => '<option value="' + esc(v) + '">' + esc(v === 'KHUSUS' ? 'JADWAL KHUSUS' : v) + '</option>').join('');
             tp.value = sec ? (sec.isKhusus ? 'KHUSUS' : sec.template) : templates[0];
             fillMendatangSecondDays(sec ? sec.day : null);
+            const ee = document.getElementById('mendatangEndDate');
+            if (ee) { ee.value = (item && item.endDate) || ''; ee.min = document.getElementById('mendatangDate').value || ''; }
             syncMendatangUI();
         }
         // false = input salah (toast sudah tampil); objek berisi hanya bagian yang diatur: {type, value} dan/atau {second}
@@ -1868,6 +1924,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 if (!day) { showToast('Pilih jadwal untuk Jadwal 2 (atau hapus centangnya).', 'error'); return false; }
                 r.second = { template: tv, day: day, isKhusus: tv === 'KHUSUS' };
             }
+            const sd = document.getElementById('mendatangDate').value, ed = (document.getElementById('mendatangEndDate') || {}).value;
+            if (ed) {
+                if (sd && ed < sd) { showToast('Tanggal akhir tidak boleh sebelum tanggal mulai.', 'error'); return false; }
+                if (ed > sd) r.endDate = ed;
+            }
             return r;
         }
 
@@ -1880,20 +1941,23 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             }
             let changed = false;
             [...jadwalMendatang].sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach(evt => {
-                if (evt.applied || evt.date > todayStr) return;
-                evt.applied = true; changed = true;
-                // Jadwal 1: ganti template (permanen sejak tanggal itu) atau jadwal khusus (hanya hari itu).
-                if (evt.type === 'template') {
-                    savedTemplate = evt.value;
-                } else if (evt.type === 'khusus' && evt.date === todayStr) {
-                    temporaryOverride = { date: todayStr, name: evt.value };
-                    manualDayOverride = null;
+                if (evt.date > todayStr) return;
+                const end = mendatangEnd(evt);
+                const legacyDone = evt.applied && !evt.endDate; // jadwal 1 hari yang sudah diproses
+                // Jadwal 1 - ganti template: sekali saja, permanen sejak tanggal mulai.
+                if (evt.type === 'template' && !evt.applied) { savedTemplate = evt.value; evt.applied = true; changed = true; }
+                // Jadwal 1 khusus & Jadwal 2: berlaku pada setiap hari dalam rentang tanggal.
+                if (!legacyDone && todayStr <= end && evt.lastApplied !== todayStr) {
+                    if (evt.type === 'khusus') {
+                        temporaryOverride = { date: todayStr, name: evt.value };
+                        manualDayOverride = null;
+                    }
+                    const sec = mendatangSec(evt);
+                    if (sec) secondSchedule = { active: true, template: sec.template, day: sec.day, isKhusus: !!sec.isKhusus, date: todayStr };
+                    evt.lastApplied = todayStr; changed = true;
                 }
-                // Jadwal 2: hanya berlaku 1 hari pada tanggal itu.
-                const sec = mendatangSec(evt);
-                if (sec && evt.date === todayStr) {
-                    secondSchedule = { active: true, template: sec.template, day: sec.day, isKhusus: !!sec.isKhusus, date: todayStr };
-                }
+                // Tandai selesai bila rentang sudah berakhir.
+                if (!evt.applied && todayStr >= end) { evt.applied = true; changed = true; }
             });
             if (changed && !noSave) saveConfig();
             return changed;
