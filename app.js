@@ -151,6 +151,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             listenAvailableSounds();
             setInterval(updateTime, 1000);
             setupEventListeners();
+            initVolumePanel();
         }
 
         let desktopStatus = null, serverOffsetMs = 0, firebaseConnected = true, serverOnline = null;
@@ -158,6 +159,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             onValue(ref(db, '.info/serverTimeOffset'), s => { serverOffsetMs = s.val() || 0; renderServerStatus(); });
             onValue(ref(db, '.info/connected'), s => { firebaseConnected = s.val() === true; if (!firebaseConnected) setSyncStatus('offline'); updateSettingsOffline(); renderServerStatus(); });
             onValue(ref(db, 'desktopStatus'), snap => { desktopStatus = snap.exists() ? snap.val() : null; renderServerStatus(); });
+            onValue(ref(db, 'desktopVolume'), snap => { desktopVolume = snap.exists() ? snap.val() : null; renderVolumePanel(); });
             setInterval(renderServerStatus, 10000);
             window.addEventListener('online', renderServerStatus);
             window.addEventListener('offline', renderServerStatus);
@@ -173,6 +175,50 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 b.textContent = 'HP tidak terhubung internet. Pengaturan tidak bisa diubah sampai tersambung lagi.';
                 main.insertBefore(b, main.firstChild);
             } else if (firebaseConnected && b) { b.remove(); }
+        }
+
+        // ---------- Volume komputer sekolah (pantau & atur dari web) ----------
+        // Desktop menulis ke 'desktopVolume' {level, muted, updatedAt}; web mengirim perintah ke 'volumeCommand'.
+        let desktopVolume = null, volumeDragging = false, volumePending = null;
+        function volumeFresh() { return desktopVolume && (Date.now() + serverOffsetMs - (desktopVolume.updatedAt || 0)) < 60000; }
+        function renderVolumePanel() {
+            const slider = document.getElementById('volumeSlider'); if (!slider) return;
+            const val = document.getElementById('volumeValue'), badge = document.getElementById('volumeBadge');
+            const bMax = document.getElementById('btnVolMax'), bMute = document.getElementById('btnVolMute'), hint = document.getElementById('volumeHint');
+            const usable = serverOnline !== false && firebaseConnected && volumeFresh();
+            const lv = usable ? desktopVolume.level : null, muted = usable ? !!desktopVolume.muted : false;
+            if (volumePending && (Date.now() > volumePending.until || (lv !== null && (volumePending.level == null || lv === volumePending.level) && (volumePending.muted == null || muted === volumePending.muted)))) volumePending = null;
+            slider.disabled = !usable; bMax.disabled = !usable; bMute.disabled = !usable;
+            if (!volumeDragging) slider.value = lv === null ? 0 : lv;
+            val.textContent = lv === null ? '--' : (volumeDragging ? slider.value : lv) + '%';
+            let cls = 'bg-slate-200 text-slate-600', txt = 'Tidak ada data';
+            if (usable) {
+                if (muted) { cls = 'bg-red-100 text-red-700'; txt = 'MUTE'; }
+                else if (lv < 100) { cls = 'bg-amber-100 text-amber-800'; txt = 'Belum 100%'; }
+                else { cls = 'bg-green-100 text-green-700'; txt = 'Normal 100%'; }
+            }
+            badge.className = 'text-[10px] px-2 py-0.5 rounded font-bold whitespace-nowrap ' + cls; badge.textContent = txt;
+            bMute.textContent = muted ? 'Unmute' : 'Mute';
+            bMax.classList.toggle('hidden', usable && lv === 100 && !muted);
+            hint.textContent = !firebaseConnected ? 'HP tidak terhubung internet.' : (serverOnline === false ? 'Server sekolah offline, volume tidak bisa dipantau/diubah.' : (!volumeFresh() ? 'Belum ada data volume dari server (pastikan aplikasi desktop versi terbaru berjalan).' : (volumePending ? 'Mengirim perintah ke komputer sekolah…' : 'Perubahan dikirim ke komputer sekolah dan langsung diterapkan.')));
+        }
+        async function sendVolumeCommand(level, muted) {
+            if (!auth.currentUser) { showToast('Belum login ke server.', 'error'); return; }
+            const cmd = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), by: 'web', at: Date.now() };
+            if (typeof level === 'number') cmd.level = Math.max(0, Math.min(100, Math.round(level)));
+            if (typeof muted === 'boolean') cmd.muted = muted;
+            volumePending = { level: cmd.level == null ? null : cmd.level, muted: cmd.muted == null ? null : cmd.muted, until: Date.now() + 12000 };
+            renderVolumePanel();
+            try { await set(ref(db, 'volumeCommand'), cmd); }
+            catch (err) { console.error(err); volumePending = null; renderVolumePanel(); showToast(err && err.code === 'PERMISSION_DENIED' ? 'Ditolak Firebase: tambahkan aturan untuk volumeCommand & desktopVolume.' : 'Gagal mengirim perintah volume.', 'error'); }
+        }
+        function initVolumePanel() {
+            const slider = document.getElementById('volumeSlider'); if (!slider) return;
+            slider.addEventListener('input', () => { volumeDragging = true; document.getElementById('volumeValue').textContent = slider.value + '%'; });
+            slider.addEventListener('change', () => { volumeDragging = false; sendVolumeCommand(parseInt(slider.value, 10), slider.value > 0 ? false : undefined); });
+            document.getElementById('btnVolMax').addEventListener('click', () => sendVolumeCommand(100, false));
+            document.getElementById('btnVolMute').addEventListener('click', () => sendVolumeCommand(undefined, !(desktopVolume && desktopVolume.muted)));
+            renderVolumePanel();
         }
 
         function renderServerStatus() {
@@ -197,6 +243,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 warn.className = 'mb-3 rounded-lg border px-3 py-2 text-sm font-semibold ' + (state === 'noinet' ? 'bg-amber-50 border-amber-300 text-amber-800' : 'bg-red-50 border-red-300 text-red-700') + (msgs[state] ? '' : ' hidden');
             }
             if (grid) grid.classList.toggle('remote-offline', state === 'noinet' || state === 'offline');
+            if (typeof renderVolumePanel === 'function') renderVolumePanel();
         }
 
         function listenToConfig() {
@@ -467,8 +514,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 
             container.innerHTML = upcoming.map(j => {
                 const dateObj = parseLocalDate(j.date);
-                const icon = j.type === 'khusus' ? '★' : '🔄';
-                const label = j.type === 'khusus' ? 'Khusus' : 'Template';
+                const icon = '➕';
+                    const label = j.type === 'template' ? 'Ganti Template (lama)' : 'Jadwal 2';
                 const isToday = j.date === todayStr;
                 
                 return `
@@ -478,8 +525,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                         <span class="text-[10px] font-bold uppercase text-slate-500 mt-0.5">${dateObj.toLocaleDateString('id-ID', {month:'short'})}</span>
                     </div>
                     <div class="flex flex-col flex-grow ml-3 leading-tight overflow-hidden">
-                        <span class="font-bold text-sm text-slate-700 truncate w-full" title="${esc(j.value)}">${esc(j.value)}</span>
-                        <span class="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">${icon} ${label}${j.second ? ' · +Jadwal 2' : ''}</span>
+                        <span class="font-bold text-sm text-slate-700 truncate w-full" title="${esc(mendatangTitle(j))}">${esc(mendatangTitle(j))}</span>
+                        <span class="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">${icon} ${label}</span>
                     </div>
                 </div>`;
             }).join('');
@@ -718,20 +765,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             document.getElementById('secondDaySelect').addEventListener('change', (e) => { secondSchedule.day = e.target.value; secondSchedule.date = getTodayDateString(); renderAll(); saveConfig(); });
         }
 
-        function updateMendatangOptions() {
-            const type = document.getElementById('mendatangType').value;
-            const valSelect = document.getElementById('mendatangValue');
-            
-            if (type === 'template') {
-                valSelect.innerHTML = templates.map(t => `<option value="${t}">${t}</option>`).join('');
-            } else {
-                if(jadwalKhusus.length === 0) {
-                    valSelect.innerHTML = `<option value="">-- Belum Ada Jadwal Khusus --</option>`;
-                } else {
-                    valSelect.innerHTML = jadwalKhusus.map(k => `<option value="${esc(k.nama)}">${esc(k.nama)}</option>`).join('');
-                }
-            }
-        }
 
         async function triggerRemote(bel) {
             if(!bel || !bel.id) return;
@@ -996,7 +1029,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     </button>
                 </div>
                 <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg text-sm text-blue-800 mb-6">
-                    Jadwal yang diatur di sini akan otomatis aktif pada tanggal yang ditentukan.
+                    Atur <b>Jadwal Kedua</b> untuk tanggal tertentu. Jadwal Utama tetap otomatis mengikuti hari saat itu (misalnya besok Selasa, aplikasi otomatis memakai jadwal Selasa), sedangkan Jadwal Kedua akan aktif pada tanggal yang Anda pilih. Jika tanggal sudah lewat, jadwal menjadi usang (abu-abu).
                 </div>
                 <div id="mendatangListContainer" class="space-y-3"></div>
             `;
@@ -1007,29 +1040,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 document.getElementById('formMendatang').reset();
                 document.getElementById('mendatangId').value = "";
                 document.getElementById('mendatangDate').min = getTodayDateString(); 
-                updateMendatangOptions();
                 fillMendatangSecond(null);
                 showModal('formMendatang');
             };
-            document.getElementById('mendatangType').onchange = updateMendatangOptions;
             
             document.getElementById('formMendatang').onsubmit = async (e) => {
                 e.preventDefault();
                 const id = document.getElementById('mendatangId').value;
                 const date = document.getElementById('mendatangDate').value;
-                const type = document.getElementById('mendatangType').value;
-                const value = document.getElementById('mendatangValue').value;
-
-                if(!value) { showToast("Pilih jadwal/template terlebih dahulu!", "error"); return; }
-                const sec = readMendatangSecond(); if (sec === false) return;
+                if (!date) { showToast("Pilih tanggal terlebih dahulu!", "error"); return; }
+                const sec = readMendatangSecond(); if (!sec) return;
 
                 if (id) {
                     const idx = jadwalMendatang.findIndex(j => j.id === id);
                     if (idx > -1) {
-                        jadwalMendatang[idx] = { id, date, type, value, applied: false, ...(sec ? { second: sec } : {}) };
+                        jadwalMendatang[idx] = { id, date, applied: false, second: sec };
                     }
                 } else {
-                    jadwalMendatang.push({ id: Date.now().toString(), date, type, value, applied: false, ...(sec ? { second: sec } : {}) });
+                    jadwalMendatang.push({ id: Date.now().toString(), date, applied: false, second: sec });
                 }
 
                 checkJadwalMendatang(getTodayDateString(), true); // acara hari ini langsung berlaku
@@ -1051,14 +1079,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     document.getElementById('formMendatangTitle').textContent = "Edit Jadwal Mendatang";
                     document.getElementById('mendatangId').value = item.id;
                     document.getElementById('mendatangDate').value = item.date;
-                    document.getElementById('mendatangType').value = item.type;
-                    updateMendatangOptions();
-                    document.getElementById('mendatangValue').value = item.value;
                     fillMendatangSecond(item);
                     showModal('formMendatang');
                 } else if (target.classList.contains('delete-mendatang-btn')) {
                     const dateObj = parseLocalDate(item.date);
-                    document.getElementById('deleteMendatangText').innerHTML = `Hapus otomatisasi <strong>${esc(item.value)}</strong> pada tanggal ${dateObj.toLocaleDateString('id-ID')}?`;
+                    document.getElementById('deleteMendatangText').innerHTML = `Hapus Jadwal Kedua <strong>${esc(mendatangTitle(item))}</strong> pada tanggal ${dateObj.toLocaleDateString('id-ID')}?`;
                     document.getElementById('confirmDeleteMendatangBtn').dataset.id = id;
                     showModal('deleteMendatang');
                 }
@@ -1122,7 +1147,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 if (isPast) { bgClass = "bg-slate-100 border-slate-200 opacity-60"; textClass = "text-slate-500 line-through"; badgeClass = "bg-slate-200 text-slate-500"; } 
                 else if (isToday) { bgClass = "bg-orange-50 border-orange-300 shadow-sm"; badgeClass = "bg-orange-200 text-orange-800 font-bold animate-pulse"; }
 
-                const typeLabel = j.type === 'khusus' ? 'Jadwal Khusus' : 'Ganti Template';
+                const typeLabel = j.type === 'template' ? 'Ganti Template (lama)' : 'Jadwal Kedua';
 
                 return `
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 border rounded-lg ${bgClass} transition-all gap-4">
@@ -1132,8 +1157,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                             ${isToday ? `<span class="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold">Hari Ini!</span>` : ''}
                         </div>
                         <p class="font-bold text-lg ${textClass}">${displayDate}</p>
-                        <p class="text-sm font-semibold text-slate-600 mt-1">→ ${esc(j.value)}</p>
-                        ${j.second ? `<p class="text-xs font-bold text-indigo-600 mt-0.5">+ Jadwal ke-2: ${esc(secondLabel(j.second))}</p>` : ''}
+                        <p class="text-sm font-semibold text-slate-600 mt-1">+ Jadwal ke-2: ${esc(mendatangTitle(j))}</p>
+                        <p class="text-xs text-slate-500 mt-0.5">Jadwal utama: otomatis sesuai hari</p>
                     </div>
                     <div class="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200">
                         <button class="btn flex-1 sm:flex-none p-3 sm:p-2 flex justify-center edit-mendatang-btn" data-id="${j.id}" title="Edit"><svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
@@ -1741,9 +1766,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(v); }
         }
 
-        // ---------- Jadwal Mendatang: opsi Jadwal Kedua ----------
+        // ---------- Jadwal Mendatang = menambah Jadwal Kedua pada tanggal tertentu ----------
+        // Jadwal utama TIDAK diubah: tetap otomatis mengikuti hari/tanggal berjalan.
         function secondDaysFor(tv) { return tv === 'KHUSUS' ? jadwalKhusus.map(j => j.nama) : jadwalUtama; }
         function secondLabel(sec) { return sec.isKhusus ? ('Khusus: ' + sec.day) : (sec.template + ' \u2022 ' + sec.day); }
+        // Data lama berjenis 'khusus' dibaca sebagai Jadwal Kedua.
+        function mendatangSec(j) {
+            if (j && j.second && j.second.day) return j.second;
+            if (j && j.type === 'khusus' && j.value) return { template: 'KHUSUS', day: j.value, isKhusus: true };
+            return null;
+        }
+        function mendatangTitle(j) { const s = mendatangSec(j); return s ? secondLabel(s) : (j && j.value) || '-'; }
         function fillMendatangSecondDays(keep) {
             const tp = document.getElementById('mendatangSecondTemplate'), dy = document.getElementById('mendatangSecondDay');
             if (!tp || !dy) return;
@@ -1751,48 +1784,38 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             dy.innerHTML = names.length ? names.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('') : '<option value="">(belum ada jadwal khusus)</option>';
             if (typeof keep === 'string' && names.includes(keep)) dy.value = keep;
         }
-        function syncMendatangSecondUI() {
-            const on = document.getElementById('mendatangSecondOn'), f = document.getElementById('mendatangSecondFields');
-            if (on && f) f.classList.toggle('hidden', !on.checked);
-        }
         function ensureMendatangSecondFields() {
             if (document.getElementById('mendatangSecondWrap')) return;
             const holder = document.querySelector('#formMendatang .space-y-4'); if (!holder) return;
             const div = document.createElement('div');
             div.id = 'mendatangSecondWrap';
-            div.className = 'rounded-lg border border-slate-200 bg-slate-50 p-3';
             div.innerHTML =
-                '<label class="flex items-start gap-2 font-semibold text-slate-700 cursor-pointer">' +
-                    '<input type="checkbox" id="mendatangSecondOn" class="mt-1 w-4 h-4"> <span>Aktifkan juga Jadwal Kedua<br><span class="text-xs font-normal text-slate-500">Dua jadwal berjalan bersamaan pada tanggal ini.</span></span>' +
-                '</label>' +
-                '<div id="mendatangSecondFields" class="hidden mt-3 space-y-2">' +
-                    '<select id="mendatangSecondTemplate" class="w-full bg-white border border-slate-300 text-slate-800 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
-                    '<select id="mendatangSecondDay" class="w-full bg-white border border-slate-300 text-slate-800 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
-                    '<p class="text-xs text-slate-500">Jadwal kedua hanya aktif pada tanggal tersebut, lalu otomatis mati.</p>' +
-                '</div>';
+                '<label class="block text-sm font-semibold text-slate-700 mb-1">Jadwal Kedua (berjalan bersama jadwal utama)</label>' +
+                '<div class="space-y-2">' +
+                    '<select id="mendatangSecondTemplate" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
+                    '<select id="mendatangSecondDay" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
+                '</div>' +
+                '<p class="text-xs text-slate-500 mt-2">Pada tanggal tersebut Jadwal Utama tetap mengikuti hari seperti biasa. Jadwal Kedua hanya aktif di tanggal itu, lalu otomatis mati.</p>';
             holder.appendChild(div);
-            document.getElementById('mendatangSecondOn').onchange = syncMendatangSecondUI;
             document.getElementById('mendatangSecondTemplate').onchange = () => fillMendatangSecondDays();
         }
         function fillMendatangSecond(item) {
             ensureMendatangSecondFields();
-            const on = document.getElementById('mendatangSecondOn'), tp = document.getElementById('mendatangSecondTemplate');
-            if (!on || !tp) return;
+            const tp = document.getElementById('mendatangSecondTemplate'); if (!tp) return;
             tp.innerHTML = [...templates, 'KHUSUS'].map(v => '<option value="' + esc(v) + '">' + esc(v === 'KHUSUS' ? 'JADWAL KHUSUS' : v) + '</option>').join('');
-            const sec = item && item.second;
-            on.checked = !!sec;
+            const sec = item ? mendatangSec(item) : null;
             tp.value = sec ? (sec.isKhusus ? 'KHUSUS' : sec.template) : templates[0];
             fillMendatangSecondDays(sec ? sec.day : null);
-            syncMendatangSecondUI();
         }
-        // null = tidak dipakai, false = input salah (toast sudah tampil), objek = jadwal kedua
+        // false = input salah (toast sudah tampil), objek = jadwal kedua
         function readMendatangSecond() {
-            const on = document.getElementById('mendatangSecondOn');
-            if (!on || !on.checked) return null;
-            const tv = document.getElementById('mendatangSecondTemplate').value, day = document.getElementById('mendatangSecondDay').value;
-            if (!day) { showToast('Pilih jadwal untuk Jadwal Kedua (atau matikan opsinya).', 'error'); return false; }
+            const tp = document.getElementById('mendatangSecondTemplate'), dy = document.getElementById('mendatangSecondDay');
+            if (!tp || !dy) return false;
+            const tv = tp.value, day = dy.value;
+            if (!day) { showToast('Pilih jadwal untuk Jadwal Kedua dulu.', 'error'); return false; }
             return { template: tv, day: day, isKhusus: tv === 'KHUSUS' };
         }
+
 
         // Dipakai bersama oleh desktop & web: aturan penerapan jadwal mendatang HARUS sama.
         function checkJadwalMendatang(todayStr, noSave) {
@@ -1804,14 +1827,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             [...jadwalMendatang].sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach(evt => {
                 if (evt.applied || evt.date > todayStr) return;
                 evt.applied = true; changed = true;
-                if (evt.type === 'template') {
-                    savedTemplate = evt.value;
-                } else if (evt.type === 'khusus' && evt.date === todayStr) {
-                    temporaryOverride = { date: todayStr, name: evt.value };
-                    manualDayOverride = null;
-                }
-                if (evt.second && evt.second.day && evt.date === todayStr) {
-                    secondSchedule = { active: true, template: evt.second.template, day: evt.second.day, isKhusus: !!evt.second.isKhusus, date: todayStr };
+                // Data lama jenis 'template' tetap dihormati; data baru hanya berisi Jadwal Kedua.
+                if (evt.type === 'template') savedTemplate = evt.value;
+                // Jadwal utama dibiarkan default (mengikuti hari ini). Mendatang hanya mengaktifkan Jadwal Kedua.
+                const sec = mendatangSec(evt);
+                if (sec && evt.date === todayStr) {
+                    secondSchedule = { active: true, template: sec.template, day: sec.day, isKhusus: !!sec.isKhusus, date: todayStr };
                 }
             });
             if (changed && !noSave) saveConfig();
@@ -1892,8 +1913,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             if (secondSchedule.isKhusus && secondSchedule.day === oldN) secondSchedule.day = newN;
         }
         function removeKhusus(nama) {
-            jadwalMendatang = jadwalMendatang.filter(j => !(j.type === 'khusus' && j.value === nama));
-            jadwalMendatang.forEach(j => { if (j.second && j.second.isKhusus && j.second.day === nama) delete j.second; });
+            jadwalMendatang = jadwalMendatang.filter(j => { const s = mendatangSec(j); return !(s && s.isKhusus && s.day === nama); });
             if (temporaryOverride && temporaryOverride.name === nama) temporaryOverride = { date: null, name: null };
             if (secondSchedule.isKhusus && secondSchedule.day === nama) { secondSchedule.active = false; secondSchedule.isKhusus = false; secondSchedule.template = 'HARI NORMAL'; secondSchedule.day = 'Senin'; secondSchedule.date = null; }
         }
