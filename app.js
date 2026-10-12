@@ -18,8 +18,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
 
         // --- GLOBAL VARIABLES ---
         const ownWrites = new Set(); // cap waktu perubahan yang kita tulis sendiri (mengenali gema Firebase)
+        let lastServerData = null, _restoring = false; // data server terakhir (untuk memulihkan tampilan bila simpan ditolak)
         let currentFirebaseTS = 0; // MENYIMPAN TIMESTAMP TERAKHIR FIREBASE (UNTUK ANTI MENTAL/BOUNCE)
-        let masterJam = [], masterBel = [], jadwalKhusus = [], masterJadwal = {};
+        let masterBel = [], jadwalKhusus = [], masterJadwal = {};
         let jadwalMendatang = [];
         let savedTemplate = 'HARI NORMAL';
         let temporaryOverride = { date: null, name: null };
@@ -49,8 +50,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             deleteHari: 'deleteHariModal', 
             formMendatang: 'formMendatangModal', 
             deleteMendatang: 'deleteMendatangModal', 
-            editJam: 'editJamModal', 
-            deleteJam: 'deleteJamModal', 
             editBel: 'editBelModal', 
             confirmPlay: 'confirmPlayModal',
             pengumuman: 'pengumumanModal',
@@ -157,12 +156,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         let desktopStatus = null, serverOffsetMs = 0, firebaseConnected = true, serverOnline = null;
         function listenToDesktopStatus() {
             onValue(ref(db, '.info/serverTimeOffset'), s => { serverOffsetMs = s.val() || 0; renderServerStatus(); });
-            onValue(ref(db, '.info/connected'), s => { firebaseConnected = s.val() === true; renderServerStatus(); });
+            onValue(ref(db, '.info/connected'), s => { firebaseConnected = s.val() === true; if (!firebaseConnected) setSyncStatus('offline'); updateSettingsOffline(); renderServerStatus(); });
             onValue(ref(db, 'desktopStatus'), snap => { desktopStatus = snap.exists() ? snap.val() : null; renderServerStatus(); });
             setInterval(renderServerStatus, 10000);
             window.addEventListener('online', renderServerStatus);
             window.addEventListener('offline', renderServerStatus);
         }
+        // Saat HP offline, Pengaturan dikunci supaya tidak ada perubahan yang tampak tersimpan padahal tidak.
+        function updateSettingsOffline() {
+            const m = document.getElementById('settingsModal'); if (!m) return;
+            m.classList.toggle('settings-offline', !firebaseConnected);
+            let b = document.getElementById('settingsOfflineBanner');
+            if (!firebaseConnected && !b) {
+                const main = m.querySelector('main'); if (!main) return;
+                b = document.createElement('div'); b.id = 'settingsOfflineBanner'; b.className = 'settings-offline-banner';
+                b.textContent = 'HP tidak terhubung internet. Pengaturan tidak bisa diubah sampai tersambung lagi.';
+                main.insertBefore(b, main.firstChild);
+            } else if (firebaseConnected && b) { b.remove(); }
+        }
+
         function renderServerStatus() {
             const el = document.getElementById('desktop-status-text'); if (!el) return;
             const d = desktopStatus; let state, label, dot, color;
@@ -198,7 +210,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 // Gema dari perubahan yang baru kita simpan sendiri: data di memori sudah sama, tidak perlu render ulang
                 if (isDataLoaded && currentFirebaseTS && ownWrites.has(currentFirebaseTS)) return;
 
-                masterJam = ensureArray(data.masterJam);
+                lastServerData = JSON.parse(JSON.stringify(data)); // salinan terpisah dari data yang diedit
+                applyServerData(data);
+            });
+        }
+
+        function applyServerData(data) {
                 if (data.masterBel) {
                     masterBel = ensureArray(data.masterBel);
                 } else {
@@ -232,24 +249,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 }
                 renderAll();
                 refreshSettingsIfOpen(); // perubahan dari desktop/perangkat lain ikut tampil di Pengaturan yang sedang terbuka
-            });
+                setSyncStatus('synced', remoteNote(data));
         }
 
-        function refreshSettingsIfOpen() {
-            const m = document.getElementById('settingsModal');
-            if (!m || !m.classList.contains('visible')) return;
-            try {
-                renderHariList(); renderJamList(); renderBelList(); renderJadwalMendatangList();
-                const t = document.getElementById('jadwalTemplateSelect'), d = document.getElementById('jadwalDaySelect');
-                if (t && d) {
-                    const keepD = d.value;
-                    const names = (t.value === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama;
-                    d.innerHTML = names.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-                    if (names.includes(keepD)) d.value = keepD;
-                    renderJadwalTable();
-                }
-            } catch (e) { console.error('Gagal menyegarkan pengaturan:', e); }
-        }
 
         function listenAvailableSounds() {
             onValue(ref(db, 'availableSounds'), snap => {
@@ -261,7 +263,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         async function saveConfig() {
             if(!auth.currentUser) return;
             // Jangan menimpa server memakai data basi bila HP sedang offline.
-            if(!firebaseConnected) { showToast('HP tidak terhubung internet. Perubahan tidak disimpan.', 'error'); return; }
+            if(!firebaseConnected) { setSyncStatus('offline'); showToast('HP tidak terhubung internet. Perubahan tidak disimpan.', 'error'); if (lastServerData && !_restoring) { _restoring = true; try { applyServerData(JSON.parse(JSON.stringify(lastServerData))); } finally { _restoring = false; } } return false; }
             
             // ANTI MENTAL BUGS:
             // Pastikan timestamp web lebih baru daripada yg ada di Firebase (memaksa sinkronisasi dengan desktop app)
@@ -273,37 +275,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             ownWrites.add(newTS); if (ownWrites.size > 50) ownWrites.delete(ownWrites.values().next().value);
 
             const data = { 
-                masterJam, masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, 
+                masterJam: computeMasterJam(), // turunan otomatis (kompatibilitas klien lama)
+                masterBel, jadwalKhusus, masterJadwal, jadwalMendatang, 
                 savedTemplate, manualDayOverride, temporaryOverride, secondSchedule, 
-                lastUpdated: newTimeStr 
+                lastUpdated: newTimeStr, lastUpdatedBy: 'web' 
             };
-            try { await set(ref(db, 'schoolBellConfig'), data); } catch (err) { console.error(err); showToast('Gagal menyimpan ke server. Periksa koneksi.', 'error'); }
-        }
-        
-        function checkJadwalMendatang(todayStr) {
-            if (lastCheckedDate === todayStr) return;
-            lastCheckedDate = todayStr;
-            if (isDataLoaded) scheduleNextBell();
-            
-            let configChanged = false;
-            const todaysEvents = jadwalMendatang.filter(j => j.date === todayStr);
-
-            todaysEvents.forEach(evt => {
-                if (evt.type === 'template' && savedTemplate !== evt.value) {
-                    savedTemplate = evt.value;
-                    configChanged = true;
-                } else if (evt.type === 'khusus') {
-                    if (temporaryOverride.date !== todayStr || temporaryOverride.name !== evt.value) {
-                        temporaryOverride = { date: todayStr, name: evt.value };
-                        manualDayOverride = null;
-                        configChanged = true;
-                    }
-                }
-            });
-
-            if (configChanged) {
-                saveConfig();
-            }
+            setSyncStatus('saving');
+            try { await set(ref(db, 'schoolBellConfig'), data); setSyncStatus('synced'); return true; }
+            catch (err) { console.error(err); setSyncStatus('error', err.code || ''); showToast('Gagal menyimpan ke server. Periksa koneksi.', 'error'); return false; }
         }
 
         function updateTime() {
@@ -313,7 +292,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             document.getElementById('time').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
             document.getElementById('date').textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
             
-            if (isDataLoaded) checkJadwalMendatang(todayStr); // jangan tandai hari 'sudah dicek' sebelum data server tiba
+            if (isDataLoaded && lastCheckedDate !== todayStr) checkJadwalMendatang(todayStr); // jangan tandai hari 'sudah dicek' sebelum data server tiba
             updateCountdown(now);
             
             const minKey = now.getHours() + ':' + now.getMinutes();
@@ -500,7 +479,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     </div>
                     <div class="flex flex-col flex-grow ml-3 leading-tight overflow-hidden">
                         <span class="font-bold text-sm text-slate-700 truncate w-full" title="${esc(j.value)}">${esc(j.value)}</span>
-                        <span class="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">${icon} ${label}</span>
+                        <span class="text-[10px] font-medium text-slate-500 mt-1 flex items-center gap-1">${icon} ${label}${j.second ? ' · +Jadwal 2' : ''}</span>
                     </div>
                 </div>`;
             }).join('');
@@ -989,7 +968,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 </div>
                 <div id="hariListContainer" class="space-y-2"></div>`;
             renderHariList();
-            document.getElementById('addHariForm').onsubmit = (e) => { e.preventDefault(); const v = document.getElementById('hariInput').value.trim().replace(/\s+/g, ' '); if (!v) return; if (jadwalKhusus.some(k => k.nama.toLowerCase() === v.toLowerCase())) { showToast('Nama jadwal khusus sudah ada!', 'error'); return; } jadwalKhusus.push({ nama: v, jadwal: {} }); saveConfig(); renderHariList(); e.target.reset(); };
+            document.getElementById('addHariForm').onsubmit = (e) => { e.preventDefault(); const v = document.getElementById('hariInput').value.trim().replace(/\s+/g, ' '); if (!v) return; if (jadwalKhusus.some(k => k.nama.toLowerCase() === v.toLowerCase())) { showToast('Nama jadwal khusus sudah ada!', 'error'); return; } jadwalKhusus.push({ nama: v, jadwal: {} }); saveConfig(); renderHariList(); e.target.reset(); refreshSettingsIfOpen(); };
             
             document.getElementById('hariListContainer').onclick = e => {
                 const target = e.target.closest('button');
@@ -1029,6 +1008,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 document.getElementById('mendatangId').value = "";
                 document.getElementById('mendatangDate').min = getTodayDateString(); 
                 updateMendatangOptions();
+                fillMendatangSecond(null);
                 showModal('formMendatang');
             };
             document.getElementById('mendatangType').onchange = updateMendatangOptions;
@@ -1041,16 +1021,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 const value = document.getElementById('mendatangValue').value;
 
                 if(!value) { showToast("Pilih jadwal/template terlebih dahulu!", "error"); return; }
+                const sec = readMendatangSecond(); if (sec === false) return;
 
                 if (id) {
                     const idx = jadwalMendatang.findIndex(j => j.id === id);
                     if (idx > -1) {
-                        jadwalMendatang[idx] = { id, date, type, value };
+                        jadwalMendatang[idx] = { id, date, type, value, applied: false, ...(sec ? { second: sec } : {}) };
                     }
                 } else {
-                    jadwalMendatang.push({ id: Date.now().toString(), date, type, value });
+                    jadwalMendatang.push({ id: Date.now().toString(), date, type, value, applied: false, ...(sec ? { second: sec } : {}) });
                 }
 
+                checkJadwalMendatang(getTodayDateString(), true); // acara hari ini langsung berlaku
                 await saveConfig();
                 renderJadwalMendatangList(); 
                 renderAll(); 
@@ -1072,6 +1054,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                     document.getElementById('mendatangType').value = item.type;
                     updateMendatangOptions();
                     document.getElementById('mendatangValue').value = item.value;
+                    fillMendatangSecond(item);
                     showModal('formMendatang');
                 } else if (target.classList.contains('delete-mendatang-btn')) {
                     const dateObj = parseLocalDate(item.date);
@@ -1091,42 +1074,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 showToast("Jadwal mendatang dihapus", "success");
             };
 
-            // TAB: MASTER JAM
-            document.getElementById('tab-content-jam').innerHTML = `
-                <div class="mb-6">
-                    <h4 class="text-lg font-semibold text-slate-800 mb-3">Master Jam</h4>
-                    <form id="addJamForm" class="shadow-sm flex flex-col sm:flex-row items-center gap-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <input type="text" id="jamInput" class="w-full sm:w-32 bg-white border border-slate-300 rounded-md p-3 sm:p-2 text-xl sm:text-base text-center outline-none focus:ring-2 focus:ring-orange-200 tracking-widest sm:tracking-normal" placeholder="00:00" maxlength="5" required autocomplete="off">
-                        <button type="submit" class="w-full sm:w-auto btn bg-orange-600 hover:bg-orange-700 text-white font-bold px-6 shadow-md border-0 py-3 sm:py-2">TAMBAH</button>
-                    </form>
-                </div>
-                <div id="jamListContainer" class="space-y-2"></div>`;
-                
-            renderJamList();
-            applyTimeInputMask('jamInput');
-            
-            document.getElementById('addJamForm').onsubmit = (e) => { 
-                e.preventDefault(); 
-                let v = document.getElementById('jamInput').value.trim();
-                if(v.length === 4 && !v.includes(':')) v = v.substring(0,2) + ":" + v.substring(2);
-                
-                if(!validJam(v)){ showToast('Format jam harus HH:MM (00:00 - 23:59).', 'error'); return; } if(masterJam.includes(v)){ showToast('Jam tersebut sudah ada!', 'error'); return; } { masterJam.push(v); masterJam.sort(); saveConfig(); renderJamList(); renderJadwalTable(); e.target.reset(); document.getElementById('jamInput').value=''; }
-            };
-            
-            document.getElementById('jamListContainer').onclick = e => { 
-                const target = e.target.closest('button'); if(!target) return;
-                const j = target.dataset.jamValue; const idx = masterJam.indexOf(j);
-                if (target.classList.contains('delete-jam-btn') && idx > -1) { 
-                    document.getElementById('deleteJamText').innerHTML = `Hapus jam <strong>${esc(j)}</strong> dari daftar?`; 
-                    document.getElementById('confirmDeleteJamBtn').dataset.jamValue = j; 
-                    showModal('deleteJam'); 
-                } else if (target.classList.contains('edit-jam-btn') && idx > -1) { 
-                    document.getElementById('editJamIndex').value = idx; 
-                    document.getElementById('editJamInput').value = j; 
-                    showModal('editJam'); 
-                }
-            };
-
             // TAB: MASTER BEL
             document.getElementById('tab-content-bel').innerHTML = `
                 <div class="mb-6">
@@ -1139,105 +1086,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             renderBelList();
             document.getElementById('belListContainer').onclick = e => { const target = e.target.closest('.edit-bel-btn'); if (target) { const index = parseInt(target.dataset.index); const bel = masterBel[index]; document.getElementById('editBelTitleId').textContent = bel.id; document.getElementById('editBelIndex').value = index; document.getElementById('editBelNamaInput').value = bel.nama; document.getElementById('editBelFileSelect').innerHTML = availableSounds.map(s => `<option value="${esc(s.value)}" ${s.value === bel.file ? 'selected' : ''}>${esc(s.text)}</option>`).join(''); showModal('editBel'); } };
 
-            // TAB: ATUR JADWAL
-            document.getElementById('tab-content-jadwal').innerHTML = `
-                <div class="mb-6">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-lg font-semibold text-slate-800">Atur Jadwal</h4>
-                        <button id="btnKosongkanJadwal" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-bold border border-red-200 transition-all shadow-sm flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            Kosongkan Jadwal
-                        </button>
-                    </div>
-                    <div class="shadow-sm flex flex-col gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <select id="jadwalTemplateSelect" class="w-full bg-white border border-slate-300 p-3 sm:p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200 text-sm"></select>
-                        <select id="jadwalDaySelect" class="w-full bg-white border border-slate-300 p-3 sm:p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-200 text-sm"></select>
-                    </div>
-                </div>
-                <div class="overflow-x-auto text-slate-800 -mx-4 sm:mx-0 px-4 sm:px-0 pb-4">
-                    <table id="jadwalTable" class="w-full min-w-[300px]">
-                        <thead><tr class="border-b border-slate-200"><th class="p-3 text-left">Jam</th><th class="p-3 text-left">Bel</th></tr></thead>
-                        <tbody></tbody>
-                    </table>
-                </div>`;
+            // TAB: ATUR JADWAL (per-jadwal, lihat blok bersama di bawah)
+            renderJadwalTab();
 
-            // Logika Tombol Kosongkan Jadwal (Ditaruh di luar fungsi onchange)
-            document.getElementById('btnKosongkanJadwal').onclick = () => {
-                const t = document.getElementById('jadwalTemplateSelect').value; 
-                const d = document.getElementById('jadwalDaySelect').value;
-                
-                if (confirm(`Apakah Anda yakin ingin mengosongkan semua jadwal untuk ${d} (${t.replace(/_/g, ' ')})?`)) {
-                    if (t === 'JADWAL_KHUSUS') {
-                        const khusus = jadwalKhusus.find(x => x.nama === d);
-                        if (khusus) khusus.jadwal = {}; 
-                    } else {
-                        if (masterJadwal[t] && masterJadwal[t][d]) {
-                            masterJadwal[t][d] = {}; 
-                        }
-                    }
-                    
-                    saveConfig(); 
-                    renderJadwalTable(); 
-                    showToast(`Jadwal ${d} berhasil dikosongkan.`, 'success'); 
-                }
-            };
+            document.getElementById('editHariForm').onsubmit = e => { e.preventDefault(); const i = parseInt(document.getElementById('editHariIndex').value); const n = document.getElementById('editHariInput').value.trim().replace(/\s+/g, ' '); const old = jadwalKhusus[i].nama; if (!n) return; if (jadwalKhusus.some((k, x) => x !== i && k.nama.toLowerCase() === n.toLowerCase())) { showToast('Nama jadwal khusus sudah ada!', 'error'); return; } if (n !== old) { jadwalKhusus[i].nama = n; renameKhusus(old, n); } saveConfig(); renderHariList(); hideModal('editHari'); renderAll(); refreshSettingsIfOpen(); };
+            document.getElementById('confirmDeleteHariBtn').onclick = e => { const i = parseInt(e.target.dataset.deleteIndex); const nama = jadwalKhusus[i].nama; jadwalKhusus.splice(i, 1); removeKhusus(nama); saveConfig(); renderHariList(); hideModal('deleteHari'); renderAll(); refreshSettingsIfOpen(); };
 
-            // Logika Onchange Tabel Jadwal
-            document.querySelector('#jadwalTable tbody').onchange = (e) => { 
-                if(e.target.tagName==='SELECT') {
-                    const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value;
-                    const j = e.target.dataset.jam; const b = parseInt(e.target.value);
-                    let s = (t==='JADWAL_KHUSUS') ? jadwalKhusus.find(x=>x.nama===d)?.jadwal : masterJadwal[t]?.[d];
-                    if(s) { 
-                        if(b===0) delete s[j]; else s[j]=b; 
-                        saveConfig(); 
-                        
-                        const tr = e.target.closest('tr');
-                        const sel = e.target;
-                        
-                        if(b === 0) {
-                            tr.className = 'border-b border-slate-200';
-                            sel.className = 'w-full p-2.5 rounded-md outline-none border border-slate-300 bg-slate-50 text-slate-500 shadow-sm cursor-pointer transition-all hover:bg-white focus:ring-2 focus:ring-slate-400 text-xs sm:text-sm';
-                        } else {
-                            tr.className = 'border-b border-slate-200 bg-orange-50/50';
-                            sel.className = 'w-full p-2.5 rounded-md outline-none border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold shadow-md cursor-pointer transition-all focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm';
-                        }
-                    }
-                }
-            };
-
-            
-            document.getElementById('editHariForm').onsubmit = e => { e.preventDefault(); const i = parseInt(document.getElementById('editHariIndex').value); const n = document.getElementById('editHariInput').value.trim().replace(/\s+/g, ' '); const old = jadwalKhusus[i].nama; if (!n) return; if (jadwalKhusus.some((k, x) => x !== i && k.nama.toLowerCase() === n.toLowerCase())) { showToast('Nama jadwal khusus sudah ada!', 'error'); return; } if (n !== old) { jadwalKhusus[i].nama = n; renameKhusus(old, n); } saveConfig(); renderHariList(); hideModal('editHari'); renderAll(); };
-            document.getElementById('confirmDeleteHariBtn').onclick = e => { const i = parseInt(e.target.dataset.deleteIndex); const nama = jadwalKhusus[i].nama; jadwalKhusus.splice(i, 1); removeKhusus(nama); saveConfig(); renderHariList(); hideModal('deleteHari'); renderAll(); };
-
-            applyTimeInputMask('editJamInput');
-            document.getElementById('editJamForm').onsubmit = e => { 
-                e.preventDefault(); const i = document.getElementById('editJamIndex').value; const old = masterJam[i]; const n = document.getElementById('editJamInput').value;
-                if(!validJam(n)){ showToast('Format jam harus HH:MM (00:00 - 23:59).', 'error'); return; } if(n !== old && masterJam.includes(n)){ showToast('Jam tersebut sudah ada!', 'error'); return; } { 
-                    masterJam[i] = n; 
-                    Object.values(masterJadwal).forEach(t=>Object.values(t).forEach(d=>{ if(d[old]){ d[n]=d[old]; delete d[old]; }}));
-                    jadwalKhusus.forEach(k=>{ if(k.jadwal[old]){ k.jadwal[n]=k.jadwal[old]; delete k.jadwal[old]; }});
-                    saveConfig(); renderJamList(); renderJadwalTable(); hideModal('editJam'); 
-                }
-            };
-
-            document.getElementById('confirmDeleteJamBtn').onclick = e => { 
-                const j = e.target.dataset.jamValue; const i = masterJam.indexOf(j);
-                if(i>-1) { 
-                    masterJam.splice(i,1); 
-                    Object.values(masterJadwal).forEach(t=>Object.values(t).forEach(d=>delete d[j]));
-                    jadwalKhusus.forEach(k=>delete k.jadwal[j]);
-                    saveConfig(); renderJamList(); renderJadwalTable(); hideModal('deleteJam'); 
-                }
-            };
-
-            document.getElementById('editBelForm').onsubmit = e => { e.preventDefault(); const i = document.getElementById('editBelIndex').value; masterBel[i].nama = document.getElementById('editBelNamaInput').value; masterBel[i].file = document.getElementById('editBelFileSelect').value; saveConfig(); renderBelList(); hideModal('editBel'); };
+            document.getElementById('editBelForm').onsubmit = e => { e.preventDefault(); const i = document.getElementById('editBelIndex').value; masterBel[i].nama = document.getElementById('editBelNamaInput').value; masterBel[i].file = document.getElementById('editBelFileSelect').value; saveConfig(); renderBelList(); hideModal('editBel'); refreshSettingsIfOpen(); };
         }
 
         // --- RENDER LISTS SETTINGS ---
         function renderHariList() { document.getElementById('hariListContainer').innerHTML = jadwalKhusus.map((h,i)=>`<div class="flex justify-between items-center bg-white p-3 sm:p-4 border border-slate-200 rounded text-slate-800"><span>${esc(h.nama)}</span><div class="flex gap-2"><button class="btn p-2 sm:p-1 px-3 edit-hari-btn" data-index="${i}">Edit</button> <button class="btn p-2 sm:p-1 px-3 delete-hari-btn text-red-500" data-index="${i}">Hapus</button></div></div>`).join(''); }
         
-        function renderJamList() { document.getElementById('jamListContainer').innerHTML = masterJam.sort().map((j,i)=>`<div class="flex justify-between items-center bg-white p-3 sm:p-4 border border-slate-200 rounded text-slate-800 text-sm font-semibold"><span>${j}</span><div class="flex gap-2"><button class="btn p-2 sm:p-1 px-3 edit-jam-btn" data-jam-value="${j}">Edit</button><button class="btn p-2 sm:p-1 px-3 text-red-500 delete-jam-btn" data-jam-value="${j}">Hapus</button></div></div>`).join(''); }
         
         function renderBelList() { document.getElementById('belListContainer').innerHTML = masterBel.map((b,i)=>`<div class="card p-4 sm:p-3 flex justify-between items-center text-sm text-slate-800"><div><p class="font-bold text-base sm:text-sm mb-1 sm:mb-0">${esc(b.nama)}</p><p class="text-xs text-slate-500">${esc(b.file || 'Kosong')}</p></div><button class="btn p-2 sm:p-1 px-4 edit-bel-btn" data-index="${i}">Edit</button></div>`).join(''); }
         
@@ -1273,6 +1133,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                         </div>
                         <p class="font-bold text-lg ${textClass}">${displayDate}</p>
                         <p class="text-sm font-semibold text-slate-600 mt-1">→ ${esc(j.value)}</p>
+                        ${j.second ? `<p class="text-xs font-bold text-indigo-600 mt-0.5">+ Jadwal ke-2: ${esc(secondLabel(j.second))}</p>` : ''}
                     </div>
                     <div class="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200">
                         <button class="btn flex-1 sm:flex-none p-3 sm:p-2 flex justify-center edit-mendatang-btn" data-id="${j.id}" title="Edit"><svg class="w-5 h-5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
@@ -1282,34 +1143,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             }).join('');
         }
         
-        function populateSettingsDropdowns() { 
-            const t = document.getElementById('jadwalTemplateSelect'); const d = document.getElementById('jadwalDaySelect');
-            if(!t || !d) return;
-            t.innerHTML = [...templates.map(v => `<option value="${v}">${v}</option>`), `<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>`].join('');
-            const u = () => { const s = t.value; let o = (s === 'JADWAL_KHUSUS') ? jadwalKhusus.map(j => j.nama) : jadwalUtama; d.innerHTML = o.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join(''); renderJadwalTable(); };
-            t.onchange = u; d.onchange = renderJadwalTable; u();
-        }
         
-        function renderJadwalTable() {
-            const b = document.querySelector('#jadwalTable tbody'); const t = document.getElementById('jadwalTemplateSelect').value; const d = document.getElementById('jadwalDaySelect').value; 
-            if(!b) return;
-            let s = (t === 'JADWAL_KHUSUS') ? (jadwalKhusus.find(x=>x.nama===d)?.jadwal || {}) : (masterJadwal[t]?.[d] || {});
-            const c = masterBel.filter(l => l && (l.file || l.nama));
-            
-            let htmlTemp = '';
-            [...masterJam].sort().forEach(j => {
-                const i = s?.[j] || 0; const isFilled = i > 0;
-                let o = `<option value="0">(Kosong)</option>` + c.map(l => `<option value="${l.id}" ${l.id == i ? 'selected' : ''}>${esc(l.nama)}</option>`).join('');
-                
-                const trClass = isFilled ? 'border-b border-slate-200 bg-orange-50/50' : 'border-b border-slate-200';
-                const selectClass = isFilled 
-                    ? 'w-full p-3 sm:p-2.5 rounded-md outline-none border-2 border-orange-400 bg-orange-100 text-orange-800 font-bold shadow-md cursor-pointer transition-all focus:ring-2 focus:ring-orange-500 text-xs sm:text-sm'
-                    : 'w-full p-3 sm:p-2.5 rounded-md outline-none border border-slate-300 bg-slate-50 text-slate-500 shadow-sm cursor-pointer transition-all hover:bg-white focus:ring-2 focus:ring-slate-400 text-xs sm:text-sm';
-                
-                htmlTemp += `<tr class="${trClass}"><td class="p-4 sm:p-3 w-16 font-semibold text-slate-700">${j}</td><td class="p-2 sm:p-2"><select class="${selectClass}" data-jam="${j}">${o}</select></td></tr>`;
-            });
-            b.innerHTML = htmlTemp;
-        }
 
         // --- HELPERS ---
         function applyTimeInputMask(id) {
@@ -1355,16 +1189,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
         function parseLocalDate(str) { const [y, m, d] = String(str).split('-').map(Number); return new Date(y, (m || 1) - 1, d || 1); }
         function validJam(v) { return /^([01]\d|2[0-3]):[0-5]\d$/.test(v); }
-        function renameKhusus(oldN, newN) {
-            jadwalMendatang.forEach(j => { if (j.type === 'khusus' && j.value === oldN) j.value = newN; });
-            if (temporaryOverride && temporaryOverride.name === oldN) temporaryOverride.name = newN;
-            if (secondSchedule.isKhusus && secondSchedule.day === oldN) secondSchedule.day = newN;
-        }
-        function removeKhusus(nama) {
-            jadwalMendatang = jadwalMendatang.filter(j => !(j.type === 'khusus' && j.value === nama));
-            if (temporaryOverride && temporaryOverride.name === nama) temporaryOverride = { date: null, name: null };
-            if (secondSchedule.isKhusus && secondSchedule.day === nama) { secondSchedule.active = false; secondSchedule.isKhusus = false; secondSchedule.template = 'HARI NORMAL'; secondSchedule.day = 'Senin'; secondSchedule.date = null; }
-        }
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden && isDataLoaded) { lastRenderedMinute = null; updateTime(); scheduleNextBell(); renderServerStatus(); }
         });
@@ -1387,7 +1211,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
         }
 
         // --- Picker modal: pengganti dropdown <select> bawaan browser ---
-        const PICKER_TITLES = { templateSelect: 'Template Jadwal', secondTemplateSelect: 'Template Jadwal 2', secondDaySelect: 'Hari / Jadwal 2', mendatangType: 'Aksi Otomatis', mendatangValue: 'Pilih Jadwal', editBelFileSelect: 'File Suara MP3', jadwalTemplateSelect: 'Template', jadwalDaySelect: 'Hari' };
+        const PICKER_TITLES = { templateSelect: 'Template Jadwal', secondTemplateSelect: 'Template Jadwal 2', secondDaySelect: 'Hari / Jadwal 2', mendatangType: 'Aksi Otomatis', mendatangValue: 'Pilih Jadwal', addBelSelect: 'Pilih bel', salinTemplate: 'Salin dari: template', salinDay: 'Salin dari: hari', mendatangSecondTemplate: 'Template Jadwal 2', mendatangSecondDay: 'Hari / Jadwal 2', editBelFileSelect: 'File Suara MP3', jadwalTemplateSelect: 'Template', jadwalDaySelect: 'Hari' };
         const _selValue = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
         let pickerTarget = null;
 
@@ -1440,6 +1264,736 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(scan))).observe(document.body, { childList: true, subtree: true });
         }
         initPickers();
+
+        // ====================================================================
+        // ATUR JADWAL v2  -  tiap jadwal punya daftar jam sendiri (tanpa Master Jam)
+        // CATATAN: blok ini IDENTIK di desktop-app.html dan app.js (web) agar tampilan
+        // dan perilakunya selaras. Jika diubah, ubah di kedua file.
+        // ====================================================================
+        const BEL_KAT = {
+            masuk:     { label: 'Bel masuk',          color: '#16a34a' },
+            pelajaran: { label: 'Jam pelajaran',      color: '#2563eb' },
+            istirahat: { label: 'Istirahat',          color: '#d97706' },
+            pulang:    { label: 'Pulang',             color: '#dc2626' },
+            kegiatan:  { label: 'Upacara & kegiatan', color: '#7c3aed' },
+            ujian:     { label: 'Ujian',              color: '#0891b2' },
+            lain:      { label: 'Lainnya',            color: '#64748b' }
+        };
+
+        function belKategori(bel) {
+            const n = String((bel && bel.nama) || '').toLowerCase();
+            if (/pulang/.test(n)) return 'pulang';
+            if (/istirahat/.test(n)) return 'istirahat';
+            if (/ujian/.test(n)) return 'ujian';
+            if (/^jam\s*\d+/.test(n)) return 'pelajaran';
+            if (/masuk/.test(n)) return 'masuk';
+            if (/upacara|jumat|kerohanian|indonesia raya|bagimu negeri|doa/.test(n)) return 'kegiatan';
+            return 'lain';
+        }
+        function belColor(belId) {
+            const bel = masterBel.find(b => b && b.id == belId);
+            return BEL_KAT[belKategori(bel)].color;
+        }
+
+        // "7:30", "730", "0730", "07.30" -> "07:30"; selain itu null
+        function normalizeJam(raw) {
+            const s = String(raw == null ? '' : raw).trim().replace(/[.\s]/g, ':');
+            const mt = s.match(/^(\d{1,2}):(\d{2})$/) || s.match(/^(\d{1,2})(\d{2})$/);
+            if (!mt) return null;
+            const h = parseInt(mt[1], 10), m = parseInt(mt[2], 10);
+            if (h > 23 || m > 59) return null;
+            return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+        }
+        function maskJamInput(el) {
+            let v = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+            if (v.length >= 2) {
+                if (parseInt(v.slice(0, 2), 10) > 23) v = '23' + v.slice(2);
+                let out = v.slice(0, 2) + ':' + v.slice(2);
+                if (v.length === 4 && parseInt(v.slice(2), 10) > 59) out = v.slice(0, 2) + ':59';
+                el.value = out;
+            } else {
+                el.value = v;
+            }
+        }
+
+        function daysFor(tv) { return tv === 'JADWAL_KHUSUS' ? jadwalKhusus.map(j => j.nama) : jadwalUtama; }
+        function schedTitle(t, d) { return t === 'JADWAL_KHUSUS' ? ('Khusus: ' + d) : (t + ' \u2022 ' + d); }
+        function currentSched() {
+            const t = document.getElementById('jadwalTemplateSelect'), d = document.getElementById('jadwalDaySelect');
+            return { t: t ? t.value : '', d: d ? d.value : '' };
+        }
+        // Objek {jam: idBel} milik satu jadwal. create=true -> dibuat bila belum ada.
+        function getScheduleObj(t, d, create) {
+            if (!d) return null;
+            if (t === 'JADWAL_KHUSUS') {
+                const k = jadwalKhusus.find(x => x.nama === d);
+                if (!k) return null;
+                if (!k.jadwal) k.jadwal = {};
+                return k.jadwal;
+            }
+            if (!masterJadwal[t]) { if (!create) return null; masterJadwal[t] = {}; }
+            if (!masterJadwal[t][d]) { if (!create) return null; masterJadwal[t][d] = {}; }
+            return masterJadwal[t][d];
+        }
+        function schedEntries(s) {
+            return s ? Object.keys(s).filter(j => parseInt(s[j], 10) > 0).sort() : [];
+        }
+        function countSched(t, d) { return schedEntries(getScheduleObj(t, d, false)).length; }
+
+        // Daftar jam gabungan, hanya untuk kompatibilitas klien lama yang masih membaca "masterJam".
+        function computeMasterJam() {
+            const set = new Set();
+            Object.values(masterJadwal || {}).forEach(t => { if (t) Object.values(t).forEach(day => { if (day) Object.keys(day).forEach(j => set.add(j)); }); });
+            (jadwalKhusus || []).forEach(k => { if (k && k.jadwal) Object.keys(k.jadwal).forEach(j => set.add(j)); });
+            return [...set].sort();
+        }
+
+        // ---------- Pilihan bel (dikelompokkan per kategori) ----------
+        function belOptionsHTML(selectedId) {
+            const groups = {};
+            masterBel.forEach(b => {
+                if (!b) return;
+                if (!(b.file || b.id == selectedId)) return;
+                const k = belKategori(b);
+                (groups[k] = groups[k] || []).push(b);
+            });
+            let html = '';
+            if (selectedId && !masterBel.some(b => b && b.id == selectedId)) {
+                html += '<option value="' + esc(selectedId) + '" selected>(Bel #' + esc(selectedId) + ' tidak ditemukan)</option>';
+            }
+            Object.keys(BEL_KAT).forEach(k => {
+                if (!groups[k]) return;
+                html += '<optgroup label="' + esc(BEL_KAT[k].label) + '">' +
+                    groups[k].map(b => '<option value="' + b.id + '"' + (b.id == selectedId ? ' selected' : '') + '>' + esc(b.nama) + '</option>').join('') +
+                    '</optgroup>';
+            });
+            return html;
+        }
+        function refreshAddBelOptions() {
+            const sel = document.getElementById('addBelSelect'); if (!sel) return;
+            const keep = sel.value;
+            sel.innerHTML = '<option value="">Pilih bel\u2026</option>' + belOptionsHTML(0);
+            if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+        }
+
+        // ---------- Render tab Atur Jadwal ----------
+        function renderJadwalTab() {
+            const el = document.getElementById('tab-content-jadwal'); if (!el) return;
+            el.innerHTML =
+                '<h4 class="text-lg font-semibold text-slate-800 mb-3">Atur Jadwal</h4>' +
+                '<div id="jadwalHeader" class="jadwal-sticky">' +
+                    '<div class="grid grid-cols-2 gap-2">' +
+                        '<select id="jadwalTemplateSelect" class="jsel" aria-label="Template"></select>' +
+                        '<select id="jadwalDaySelect" class="jsel" aria-label="Hari / jadwal"></select>' +
+                    '</div>' +
+                    '<form id="addRowForm" class="flex items-center gap-2 mt-2" autocomplete="off">' +
+                        '<input id="jamInput" type="text" inputmode="numeric" maxlength="5" placeholder="00:00" class="jam-input" aria-label="Jam baru">' +
+                        '<select id="addBelSelect" class="jsel bel-add" aria-label="Pilih bel"></select>' +
+                        '<button type="submit" class="jbtn jbtn-primary">+ Tambah</button>' +
+                    '</form>' +
+                    '<div class="flex flex-wrap items-center gap-2 mt-2">' +
+                        '<span id="jadwalCount" class="jcount"></span>' +
+                        '<span class="sync-badge sync-pill"></span>' +
+                        '<div class="ml-auto flex flex-wrap gap-2">' +
+                            '<button type="button" id="btnSalinDari" class="jbtn">Salin dari\u2026</button>' +
+                            '<button type="button" id="btnTerapkanKe" class="jbtn">Terapkan ke\u2026</button>' +
+                            '<button type="button" id="btnKosongkanJadwal" class="jbtn jbtn-danger">Kosongkan</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="jadwalRows" class="space-y-2 mt-3 pb-6"></div>';
+            bindJadwalTab();
+            fixJadwalStickyOffset();
+            renderSyncBadge();
+        }
+
+        // Header melayang menempel tepat di tepi atas area scroll (menutupi padding), sehingga tidak ada baris yang mengintip di atasnya.
+        function fixJadwalStickyOffset() {
+            const hdr = document.getElementById('jadwalHeader'); if (!hdr) return;
+            const box = hdr.closest('.overflow-y-auto'); if (!box) return;
+            const pt = parseFloat(getComputedStyle(box).paddingTop) || 0;
+            hdr.style.top = (-pt) + 'px';
+            hdr.style.paddingTop = Math.max(pt, 8) + 'px';
+        }
+
+        function populateSettingsDropdowns() {
+            const t = document.getElementById('jadwalTemplateSelect'), d = document.getElementById('jadwalDaySelect');
+            if (!t || !d) return;
+            t.innerHTML = [...templates.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>'), '<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>'].join('');
+            const fillDays = () => {
+                const names = daysFor(t.value);
+                d.innerHTML = names.length ? names.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('') : '<option value="">(belum ada jadwal khusus)</option>';
+            };
+            t.onchange = () => { fillDays(); renderJadwalTable(); };
+            d.onchange = () => renderJadwalTable();
+            fillDays();
+            renderJadwalTable();
+        }
+
+        function rowHTML(jam, belId) {
+            return '<div class="jrow" data-jam="' + esc(jam) + '" style="--c:' + belColor(belId) + '">' +
+                '<input class="jam-input" type="text" inputmode="numeric" maxlength="5" value="' + esc(jam) + '" data-old="' + esc(jam) + '" aria-label="Jam">' +
+                '<select class="jsel bel-select" data-jam="' + esc(jam) + '" aria-label="Bel untuk jam ' + esc(jam) + '">' + belOptionsHTML(belId) + '</select>' +
+                '<button type="button" class="jrow-del" data-jam="' + esc(jam) + '" title="Hapus jam ' + esc(jam) + '" aria-label="Hapus jam ' + esc(jam) + '">' +
+                    '<svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>' +
+                '</button></div>';
+        }
+
+        function renderJadwalTable() {
+            const box = document.getElementById('jadwalRows'); if (!box) return;
+            const { t, d } = currentSched();
+            const s = getScheduleObj(t, d, false);
+            const keys = schedEntries(s);
+            const cnt = document.getElementById('jadwalCount');
+            if (cnt) cnt.textContent = d ? (keys.length + ' bel') : '';
+            const form = document.getElementById('addRowForm');
+            if (form) form.classList.toggle('opacity-50', !d);
+            refreshAddBelOptions();
+            if (!d) {
+                box.innerHTML = '<div class="jempty">Belum ada jadwal khusus. Buat dulu di tab <b>Hari Khusus</b>.</div>';
+                return;
+            }
+            if (!keys.length) {
+                box.innerHTML = '<div class="jempty">Belum ada bel di jadwal ini.<br>Isi jam dan pilih bel di atas, lalu tekan <b>+ Tambah</b>, atau gunakan <b>Salin dari\u2026</b>.</div>';
+                return;
+            }
+            const used = new Set();
+            let html = keys.map(j => { used.add(belKategori(masterBel.find(b => b && b.id == s[j]))); return rowHTML(j, parseInt(s[j], 10)); }).join('');
+            html += '<div class="jlegend">' + Object.keys(BEL_KAT).filter(k => used.has(k)).map(k => '<span><i style="background:' + BEL_KAT[k].color + '"></i>' + esc(BEL_KAT[k].label) + '</span>').join('') + '</div>';
+            box.innerHTML = html;
+        }
+
+        function flashJadwalRow(jam) {
+            const row = document.querySelector('#jadwalRows .jrow[data-jam="' + jam + '"]');
+            if (!row) return;
+            row.classList.add('flash');
+            row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            setTimeout(() => row.classList.remove('flash'), 1500);
+        }
+
+        let _refreshPending = false;
+        function bindJadwalTab() {
+            applyTimeInputMask('jamInput');
+            document.getElementById('addRowForm').onsubmit = onAddRow;
+            document.getElementById('btnSalinDari').onclick = openSalin;
+            document.getElementById('btnTerapkanKe').onclick = openTerapkan;
+            document.getElementById('btnKosongkanJadwal').onclick = onKosongkan;
+            const rows = document.getElementById('jadwalRows');
+            rows.oninput = e => { if (e.target.classList && e.target.classList.contains('jam-input')) maskJamInput(e.target); };
+            rows.onkeydown = e => {
+                const el = e.target; if (!el.classList || !el.classList.contains('jam-input')) return;
+                if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+                else if (e.key === 'Escape') { el.value = el.dataset.old; el.blur(); }
+                else if (e.key === 'Backspace' && el.value.endsWith(':')) { e.preventDefault(); el.value = el.value.slice(0, -1); }
+            };
+            rows.onchange = onRowChange;
+            rows.onclick = onRowClick;
+            rows.addEventListener('focusout', () => {
+                if (!_refreshPending) return;
+                setTimeout(() => {
+                    const a = document.activeElement;
+                    if (a && a.closest && a.closest('#jadwalRows')) return;
+                    _refreshPending = false; renderJadwalTable();
+                }, 0);
+            });
+        }
+
+        function onAddRow(e) {
+            e.preventDefault();
+            const { t, d } = currentSched();
+            if (!d) { showToast('Pilih jadwal terlebih dahulu.', 'error'); return; }
+            const jamEl = document.getElementById('jamInput'), belEl = document.getElementById('addBelSelect');
+            const jam = normalizeJam(jamEl.value);
+            if (!jam) { showToast('Format jam salah! Gunakan HH:MM (contoh 07:00).', 'error'); jamEl.focus(); return; }
+            const bel = parseInt(belEl.value, 10);
+            if (!bel) { showToast('Pilih bel terlebih dahulu.', 'error'); return; }
+            const s = getScheduleObj(t, d, true);
+            if (!s) { showToast('Jadwal tidak ditemukan.', 'error'); return; }
+            if (parseInt(s[jam], 10) > 0) {
+                showToast('Jam ' + jam + ' sudah ada di jadwal ini. Ubah belnya langsung pada daftar.', 'error');
+                flashJadwalRow(jam); return;
+            }
+            s[jam] = bel;
+            saveConfig();
+            jamEl.value = '';
+            renderJadwalTable();
+            flashJadwalRow(jam);
+            showToast('Jam ' + jam + ' ditambahkan', 'success');
+            jamEl.focus();
+        }
+
+        function onRowChange(e) {
+            const el = e.target; if (!el.classList) return;
+            const { t, d } = currentSched();
+            if (el.classList.contains('jam-input')) {
+                const old = el.dataset.old, nj = normalizeJam(el.value);
+                if (!nj) { showToast('Format jam salah! Gunakan HH:MM.', 'error'); el.value = old; return; }
+                if (nj === old) { el.value = old; return; }
+                const s = getScheduleObj(t, d, true);
+                if (!s || !(parseInt(s[old], 10) > 0)) { renderJadwalTable(); return; }
+                if (parseInt(s[nj], 10) > 0) { showToast('Jam ' + nj + ' sudah ada di jadwal ini.', 'error'); el.value = old; return; }
+                s[nj] = s[old]; delete s[old];
+                saveConfig();
+                renderJadwalTable();
+                flashJadwalRow(nj);
+            } else if (el.classList.contains('bel-select')) {
+                const jam = el.dataset.jam, b = parseInt(el.value, 10);
+                if (!b) return;
+                const s = getScheduleObj(t, d, true);
+                if (!s) return;
+                s[jam] = b;
+                saveConfig();
+                const row = el.closest('.jrow');
+                if (row) row.style.setProperty('--c', belColor(b));
+            }
+        }
+
+        async function onRowClick(e) {
+            const btn = e.target.closest ? e.target.closest('.jrow-del') : null;
+            if (!btn) return;
+            const jam = btn.dataset.jam, { t, d } = currentSched();
+            const s0 = getScheduleObj(t, d, false); if (!s0) return;
+            const bel = masterBel.find(b => b && b.id == s0[jam]);
+            const ok = await askConfirm({
+                title: 'Hapus jam ini?',
+                html: 'Hapus jam <b>' + esc(jam) + '</b> (' + esc(bel ? bel.nama : 'bel') + ') dari jadwal <b>' + esc(schedTitle(t, d)) + '</b>?' +
+                      '<br><span class="text-xs text-slate-500">Hanya jadwal ini yang berubah, jadwal lain tidak terpengaruh.</span>',
+                okText: 'Hapus'
+            });
+            if (!ok) return;
+            const s = getScheduleObj(t, d, false);
+            if (s) delete s[jam];
+            saveConfig();
+            renderJadwalTable();
+            showToast('Jam ' + jam + ' dihapus', 'success');
+        }
+
+        async function onKosongkan() {
+            const { t, d } = currentSched();
+            const s0 = getScheduleObj(t, d, false);
+            const n = schedEntries(s0).length;
+            if (!d || !n) { showToast('Jadwal ini sudah kosong.', 'info'); return; }
+            const ok = await askConfirm({
+                title: 'Kosongkan jadwal?',
+                html: 'Semua <b>' + n + ' bel</b> pada jadwal <b>' + esc(schedTitle(t, d)) + '</b> akan dihapus.',
+                okText: 'Kosongkan'
+            });
+            if (!ok) return;
+            const s = getScheduleObj(t, d, true);
+            if (s) Object.keys(s).forEach(k => delete s[k]);
+            saveConfig();
+            renderJadwalTable();
+            showToast('Jadwal ' + d + ' dikosongkan', 'success');
+        }
+
+        // ---------- Salin dari ----------
+        let _salin = null;
+        function fillSalinDays(preferDay) {
+            const st = document.getElementById('salinTemplate'), sd = document.getElementById('salinDay');
+            const names = daysFor(st.value).filter(n => !(_salin && st.value === _salin.t && n === _salin.d));
+            sd.innerHTML = names.length ? names.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('') : '<option value="">(tidak ada pilihan)</option>';
+            if (preferDay && names.includes(preferDay)) sd.value = preferDay;
+        }
+        function updateSalinInfo() {
+            const st = document.getElementById('salinTemplate'), sd = document.getElementById('salinDay');
+            const info = document.getElementById('salinInfo'), ok = document.getElementById('salinOkBtn');
+            const n = sd.value ? countSched(st.value, sd.value) : 0;
+            info.textContent = !sd.value ? 'Pilih jadwal sumber.' : (n ? (n + ' bel akan disalin.') : 'Jadwal sumber masih kosong.');
+            ok.disabled = !n;
+        }
+        function openSalin() {
+            const { t, d } = currentSched();
+            if (!d) { showToast('Pilih jadwal tujuan terlebih dahulu.', 'error'); return; }
+            _salin = { t, d };
+            document.getElementById('salinTarget').textContent = schedTitle(t, d);
+            const st = document.getElementById('salinTemplate');
+            st.innerHTML = [...templates.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>'), '<option value="JADWAL_KHUSUS">JADWAL KHUSUS</option>'].join('');
+            st.value = t;
+            st.onchange = () => { fillSalinDays(); updateSalinInfo(); };
+            document.getElementById('salinDay').onchange = updateSalinInfo;
+            fillSalinDays();
+            updateSalinInfo();
+            document.querySelector('input[name="salinMode"][value="replace"]').checked = true;
+            showModal('salin');
+        }
+        async function doSalin() {
+            if (!_salin) return;
+            const { t, d } = _salin;
+            const st = document.getElementById('salinTemplate').value, sd = document.getElementById('salinDay').value;
+            const mode = document.querySelector('input[name="salinMode"]:checked').value;
+            const src = getScheduleObj(st, sd, false);
+            const keys = schedEntries(src);
+            if (!keys.length) { showToast('Jadwal sumber kosong.', 'error'); return; }
+            const existing = countSched(t, d);
+            if (mode === 'replace' && existing) {
+                const ok = await askConfirm({
+                    title: 'Gantikan jadwal?',
+                    html: 'Jadwal <b>' + esc(schedTitle(t, d)) + '</b> sudah berisi <b>' + existing + ' bel</b> dan akan diganti dengan <b>' + keys.length + ' bel</b> dari <b>' + esc(schedTitle(st, sd)) + '</b>.',
+                    okText: 'Ya, gantikan'
+                });
+                if (!ok) return;
+            }
+            const copy = {}; keys.forEach(k => { copy[k] = src[k]; });
+            const target = getScheduleObj(t, d, true);
+            if (!target) { showToast('Jadwal tujuan tidak ditemukan.', 'error'); return; }
+            if (mode === 'replace') Object.keys(target).forEach(k => delete target[k]);
+            Object.assign(target, copy);
+            saveConfig();
+            hideModal('salin');
+            renderJadwalTable();
+            showToast(keys.length + ' bel disalin ke ' + d, 'success');
+        }
+
+        // ---------- Terapkan ke jadwal lain ----------
+        let _terapkan = null;
+        function listTargets(exceptT, exceptD) {
+            const groups = [];
+            templates.forEach(tp => {
+                const items = jadwalUtama.filter(dd => !(tp === exceptT && dd === exceptD)).map(dd => ({ t: tp, d: dd, n: countSched(tp, dd) }));
+                if (items.length) groups.push({ label: tp, items });
+            });
+            const kh = jadwalKhusus.filter(k => !(exceptT === 'JADWAL_KHUSUS' && k.nama === exceptD)).map(k => ({ t: 'JADWAL_KHUSUS', d: k.nama, n: countSched('JADWAL_KHUSUS', k.nama) }));
+            if (kh.length) groups.push({ label: 'Jadwal Khusus', items: kh });
+            return groups;
+        }
+        function updateTerapkanInfo() {
+            const checked = [...document.querySelectorAll('#terapkanList .tchk:checked')];
+            const filled = checked.filter(c => _terapkan.flat[+c.dataset.i].n > 0).length;
+            document.getElementById('terapkanInfo').textContent = checked.length
+                ? (checked.length + ' jadwal dipilih' + (filled ? (', ' + filled + ' di antaranya sudah berisi') : '') + '.')
+                : 'Belum ada jadwal dipilih.';
+            document.getElementById('terapkanOkBtn').disabled = !checked.length;
+        }
+        function openTerapkan() {
+            const { t, d } = currentSched();
+            const n = countSched(t, d);
+            if (!d || !n) { showToast('Jadwal ini masih kosong, tidak ada yang bisa diterapkan.', 'warning'); return; }
+            const groups = listTargets(t, d);
+            if (!groups.length) { showToast('Tidak ada jadwal lain sebagai tujuan.', 'info'); return; }
+            const flat = []; let html = '';
+            groups.forEach((g, gi) => {
+                html += '<details class="tgroup"' + (g.label === t || (t === 'JADWAL_KHUSUS' && g.label === 'Jadwal Khusus') ? ' open' : '') + '><summary><span>' + esc(g.label) + '</span>' +
+                    '<label class="tall"><input type="checkbox" class="tgrp" data-g="' + gi + '"> Semua</label></summary><div class="tbody">';
+                g.items.forEach(it => {
+                    html += '<label class="titem"><input type="checkbox" class="tchk" data-i="' + flat.length + '" data-g="' + gi + '"> <span>' + esc(it.d) + '</span><em>' + (it.n ? it.n + ' bel' : 'kosong') + '</em></label>';
+                    flat.push(it);
+                });
+                html += '</div></details>';
+            });
+            _terapkan = { t, d, flat };
+            document.getElementById('terapkanSource').textContent = schedTitle(t, d) + ' (' + n + ' bel)';
+            const list = document.getElementById('terapkanList');
+            list.innerHTML = html;
+            list.onchange = ev => {
+                const el = ev.target;
+                if (el.classList.contains('tgrp')) list.querySelectorAll('.tchk[data-g="' + el.dataset.g + '"]').forEach(c => { c.checked = el.checked; });
+                updateTerapkanInfo();
+            };
+            document.querySelector('input[name="terapkanMode"][value="replace"]').checked = true;
+            updateTerapkanInfo();
+            showModal('terapkan');
+        }
+        async function doTerapkan() {
+            if (!_terapkan) return;
+            const { t, d, flat } = _terapkan;
+            const targets = [...document.querySelectorAll('#terapkanList .tchk:checked')].map(c => flat[+c.dataset.i]);
+            if (!targets.length) return;
+            const mode = document.querySelector('input[name="terapkanMode"]:checked').value;
+            const src = getScheduleObj(t, d, false), keys = schedEntries(src);
+            if (!keys.length) { showToast('Jadwal sumber kosong.', 'error'); return; }
+            const filled = targets.filter(x => x.n > 0).length;
+            const ok = await askConfirm({
+                title: 'Terapkan jadwal?',
+                html: 'Jadwal <b>' + esc(schedTitle(t, d)) + '</b> (' + keys.length + ' bel) akan ' + (mode === 'replace' ? 'menggantikan' : 'digabungkan ke') + ' <b>' + targets.length + ' jadwal</b>' +
+                      (mode === 'replace' && filled ? '<br><span class="text-xs text-red-600">' + filled + ' di antaranya sudah berisi dan isinya akan hilang.</span>' : '') + '.',
+                okText: 'Terapkan', danger: mode === 'replace' && filled > 0
+            });
+            if (!ok) return;
+            const copy = {}; keys.forEach(k => { copy[k] = src[k]; });
+            targets.forEach(x => {
+                const target = getScheduleObj(x.t, x.d, true); if (!target) return;
+                if (mode === 'replace') Object.keys(target).forEach(k => delete target[k]);
+                Object.assign(target, copy);
+            });
+            saveConfig();
+            hideModal('terapkan');
+            renderJadwalTable();
+            showToast('Jadwal diterapkan ke ' + targets.length + ' jadwal', 'success');
+        }
+
+        // ---------- Dialog konfirmasi umum ----------
+        let _confirmResolve = null;
+        function askConfirm(opt) {
+            const o = Object.assign({ title: 'Konfirmasi', html: '', okText: 'Ya', danger: true }, opt || {});
+            return new Promise(res => {
+                if (_confirmResolve) _confirmResolve(false);
+                _confirmResolve = res;
+                document.getElementById('confirmTitle').textContent = o.title;
+                document.getElementById('confirmBody').innerHTML = o.html;
+                const ok = document.getElementById('confirmOkBtn');
+                ok.textContent = o.okText;
+                ok.className = 'btn w-full border-0 text-white ' + (o.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700');
+                showModal('confirm');
+            });
+        }
+        function _closeConfirm(v) {
+            hideModal('confirm');
+            if (_confirmResolve) { const r = _confirmResolve; _confirmResolve = null; r(v); }
+        }
+
+        // ---------- Jadwal Mendatang: opsi Jadwal Kedua ----------
+        function secondDaysFor(tv) { return tv === 'KHUSUS' ? jadwalKhusus.map(j => j.nama) : jadwalUtama; }
+        function secondLabel(sec) { return sec.isKhusus ? ('Khusus: ' + sec.day) : (sec.template + ' \u2022 ' + sec.day); }
+        function fillMendatangSecondDays(keep) {
+            const tp = document.getElementById('mendatangSecondTemplate'), dy = document.getElementById('mendatangSecondDay');
+            if (!tp || !dy) return;
+            const names = secondDaysFor(tp.value);
+            dy.innerHTML = names.length ? names.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('') : '<option value="">(belum ada jadwal khusus)</option>';
+            if (typeof keep === 'string' && names.includes(keep)) dy.value = keep;
+        }
+        function syncMendatangSecondUI() {
+            const on = document.getElementById('mendatangSecondOn'), f = document.getElementById('mendatangSecondFields');
+            if (on && f) f.classList.toggle('hidden', !on.checked);
+        }
+        function ensureMendatangSecondFields() {
+            if (document.getElementById('mendatangSecondWrap')) return;
+            const holder = document.querySelector('#formMendatang .space-y-4'); if (!holder) return;
+            const div = document.createElement('div');
+            div.id = 'mendatangSecondWrap';
+            div.className = 'rounded-lg border border-slate-200 bg-slate-50 p-3';
+            div.innerHTML =
+                '<label class="flex items-start gap-2 font-semibold text-slate-700 cursor-pointer">' +
+                    '<input type="checkbox" id="mendatangSecondOn" class="mt-1 w-4 h-4"> <span>Aktifkan juga Jadwal Kedua<br><span class="text-xs font-normal text-slate-500">Dua jadwal berjalan bersamaan pada tanggal ini.</span></span>' +
+                '</label>' +
+                '<div id="mendatangSecondFields" class="hidden mt-3 space-y-2">' +
+                    '<select id="mendatangSecondTemplate" class="w-full bg-white border border-slate-300 text-slate-800 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
+                    '<select id="mendatangSecondDay" class="w-full bg-white border border-slate-300 text-slate-800 p-2 rounded-md outline-none focus:ring-2 focus:ring-orange-300"></select>' +
+                    '<p class="text-xs text-slate-500">Jadwal kedua hanya aktif pada tanggal tersebut, lalu otomatis mati.</p>' +
+                '</div>';
+            holder.appendChild(div);
+            document.getElementById('mendatangSecondOn').onchange = syncMendatangSecondUI;
+            document.getElementById('mendatangSecondTemplate').onchange = () => fillMendatangSecondDays();
+        }
+        function fillMendatangSecond(item) {
+            ensureMendatangSecondFields();
+            const on = document.getElementById('mendatangSecondOn'), tp = document.getElementById('mendatangSecondTemplate');
+            if (!on || !tp) return;
+            tp.innerHTML = [...templates, 'KHUSUS'].map(v => '<option value="' + esc(v) + '">' + esc(v === 'KHUSUS' ? 'JADWAL KHUSUS' : v) + '</option>').join('');
+            const sec = item && item.second;
+            on.checked = !!sec;
+            tp.value = sec ? (sec.isKhusus ? 'KHUSUS' : sec.template) : templates[0];
+            fillMendatangSecondDays(sec ? sec.day : null);
+            syncMendatangSecondUI();
+        }
+        // null = tidak dipakai, false = input salah (toast sudah tampil), objek = jadwal kedua
+        function readMendatangSecond() {
+            const on = document.getElementById('mendatangSecondOn');
+            if (!on || !on.checked) return null;
+            const tv = document.getElementById('mendatangSecondTemplate').value, day = document.getElementById('mendatangSecondDay').value;
+            if (!day) { showToast('Pilih jadwal untuk Jadwal Kedua (atau matikan opsinya).', 'error'); return false; }
+            return { template: tv, day: day, isKhusus: tv === 'KHUSUS' };
+        }
+
+        // Dipakai bersama oleh desktop & web: aturan penerapan jadwal mendatang HARUS sama.
+        function checkJadwalMendatang(todayStr, noSave) {
+            if (typeof lastCheckedDate !== 'undefined' && lastCheckedDate !== todayStr) {
+                lastCheckedDate = todayStr;
+                if (typeof isDataLoaded !== 'undefined' && isDataLoaded && typeof scheduleNextBell === 'function') scheduleNextBell();
+            }
+            let changed = false;
+            [...jadwalMendatang].sort((a, b) => String(a.date).localeCompare(String(b.date))).forEach(evt => {
+                if (evt.applied || evt.date > todayStr) return;
+                evt.applied = true; changed = true;
+                if (evt.type === 'template') {
+                    savedTemplate = evt.value;
+                } else if (evt.type === 'khusus' && evt.date === todayStr) {
+                    temporaryOverride = { date: todayStr, name: evt.value };
+                    manualDayOverride = null;
+                }
+                if (evt.second && evt.second.day && evt.date === todayStr) {
+                    secondSchedule = { active: true, template: evt.second.template, day: evt.second.day, isKhusus: !!evt.second.isKhusus, date: todayStr };
+                }
+            });
+            if (changed && !noSave) saveConfig();
+            return changed;
+        }
+
+        // ---------- Status sinkronisasi ----------
+        let syncStatus = { state: 'idle', at: null, note: '' };
+        function syncMe() { return document.getElementById('conn-status') ? 'desktop' : 'web'; }
+        function remoteNote(data) {
+            const by = data && data.lastUpdatedBy;
+            return (by && by !== syncMe()) ? ('Diperbarui dari ' + (by === 'web' ? 'Web' : 'Desktop')) : '';
+        }
+        function setSyncStatus(state, note) {
+            syncStatus = { state: state, at: Date.now(), note: note || '' };
+            renderSyncBadge();
+        }
+        function renderSyncBadge() {
+            const s = syncStatus;
+            const hhmm = new Date(s.at || Date.now()).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\./g, ':');
+            const map = {
+                idle:    ['bg-gray-400', 'Menunggu data'],
+                saving:  ['bg-amber-400 animate-pulse', 'Menyimpan\u2026'],
+                synced:  ['bg-green-500', (s.note ? s.note : 'Tersinkron') + ' ' + hhmm],
+                pending: ['bg-amber-500', 'Belum terkirim (menunggu koneksi)'],
+                offline: ['bg-red-500', 'Offline'],
+                error:   ['bg-red-500', 'Gagal sinkron' + (s.note ? ': ' + s.note : '')]
+            };
+            const m = map[s.state] || map.idle;
+            document.querySelectorAll('.sync-badge').forEach(el => {
+                el.innerHTML = '<span class="w-2 h-2 rounded-full flex-shrink-0 ' + m[0] + '"></span><span class="truncate">' + esc(m[1]) + '</span>';
+                el.title = 'Status sinkronisasi: ' + m[1];
+            });
+        }
+        function ensureSyncBadge() {
+            if (document.getElementById('sync-badge-main')) return;
+            const span = document.createElement('span');
+            span.id = 'sync-badge-main';
+            span.className = 'sync-badge sync-pill';
+            const conn = document.getElementById('conn-status');
+            if (conn) {
+                span.className += ' border-l border-slate-700 pl-4';
+                conn.insertAdjacentElement('afterend', span);
+            } else {
+                const bar = document.getElementById('server-status-bar');
+                const right = bar && bar.lastElementChild;
+                if (right) right.insertBefore(span, right.firstChild);
+            }
+            renderSyncBadge();
+        }
+
+        // ---------- Segarkan Pengaturan yang sedang terbuka (perubahan dari sisi lain) ----------
+        function refreshSettingsIfOpen() {
+            const m = document.getElementById('settingsModal');
+            if (!m || !m.classList.contains('visible')) return;
+            try {
+                renderHariList(); renderBelList(); renderJadwalMendatangList();
+                const t = document.getElementById('jadwalTemplateSelect'), d = document.getElementById('jadwalDaySelect');
+                if (t && d) {
+                    const keepD = d.value;
+                    const names = daysFor(t.value);
+                    d.innerHTML = names.length ? names.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('') : '<option value="">(belum ada jadwal khusus)</option>';
+                    if (names.includes(keepD)) d.value = keepD;
+                    const a = document.activeElement;
+                    if (a && a.closest && a.closest('#jadwalRows')) { _refreshPending = true; return; }
+                    renderJadwalTable();
+                }
+            } catch (e) { console.error('Gagal menyegarkan Pengaturan:', e); }
+        }
+
+        // ---------- Rename / hapus jadwal khusus: semua rujukan ikut diperbarui ----------
+        function renameKhusus(oldN, newN) {
+            jadwalMendatang.forEach(j => {
+                if (j.type === 'khusus' && j.value === oldN) j.value = newN;
+                if (j.second && j.second.isKhusus && j.second.day === oldN) j.second.day = newN;
+            });
+            if (temporaryOverride && temporaryOverride.name === oldN) temporaryOverride.name = newN;
+            if (secondSchedule.isKhusus && secondSchedule.day === oldN) secondSchedule.day = newN;
+        }
+        function removeKhusus(nama) {
+            jadwalMendatang = jadwalMendatang.filter(j => !(j.type === 'khusus' && j.value === nama));
+            jadwalMendatang.forEach(j => { if (j.second && j.second.isKhusus && j.second.day === nama) delete j.second; });
+            if (temporaryOverride && temporaryOverride.name === nama) temporaryOverride = { date: null, name: null };
+            if (secondSchedule.isKhusus && secondSchedule.day === nama) { secondSchedule.active = false; secondSchedule.isKhusus = false; secondSchedule.template = 'HARI NORMAL'; secondSchedule.day = 'Senin'; secondSchedule.date = null; }
+        }
+
+        // ---------- Pasang CSS, dialog, dan lencana status (sekali) ----------
+        function injectJadwalUiOnce() {
+            if (document.getElementById('jadwal-ui-style')) return;
+            const st = document.createElement('style');
+            st.id = 'jadwal-ui-style';
+            st.textContent = [
+                '.jadwal-sticky{position:sticky;top:0;z-index:5;background:#fff;padding:.75rem 0;border-bottom:1px solid #e2e8f0;box-shadow:0 8px 10px -8px rgba(15,23,42,.28)}',
+                '.jsel{width:100%;min-width:0;background-color:#fff;border:1px solid #cbd5e1;border-radius:.5rem;padding:.5rem .6rem;font-weight:600;color:#334155;outline:none}',
+                '.jsel:focus{box-shadow:0 0 0 2px #fed7aa;border-color:#fb923c}',
+                '.jam-input{width:5.2rem;flex:none;text-align:center;font-weight:800;font-size:1rem;padding:.5rem .25rem;border:1px solid #cbd5e1;border-radius:.5rem;background:#fff;color:#1e293b;font-variant-numeric:tabular-nums;outline:none}',
+                '.jam-input:focus{box-shadow:0 0 0 2px #fed7aa;border-color:#fb923c}',
+                '.jbtn{background:#f1f5f9;color:#475569;border:1px solid #cbd5e1;border-radius:.5rem;padding:.45rem .8rem;font-weight:700;font-size:.8rem;white-space:nowrap;transition:background .15s}',
+                '.jbtn:hover{background:#e2e8f0}',
+                '.jbtn-primary{background:#ea580c;border-color:#c2410c;color:#fff;font-size:.9rem}',
+                '.jbtn-primary:hover{background:#c2410c}',
+                '.jbtn-danger{background:#fef2f2;border-color:#fecaca;color:#dc2626}',
+                '.jbtn-danger:hover{background:#fee2e2}',
+                '.jcount{font-size:.8rem;font-weight:800;color:#ea580c;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;padding:.15rem .6rem}',
+                '.jrow{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem .4rem .6rem;border:1px solid #e2e8f0;border-left:5px solid var(--c,#94a3b8);border-radius:.6rem;background:#fff}',
+                '.jrow:hover{background:#f8fafc}',
+                '.jrow.flash{animation:jflash 1.4s ease}',
+                '@keyframes jflash{0%{background:#fde047}100%{background:#fff}}',
+                '.jrow .bel-select{flex:1}',
+                '.jrow-del{flex:none;display:flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:.5rem;color:#ef4444;border:1px solid transparent}',
+                '.jrow-del:hover{background:#fef2f2;border-color:#fecaca}',
+                '.jempty{text-align:center;color:#64748b;font-style:italic;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:.6rem;padding:1.5rem 1rem}',
+                '.jlegend{display:flex;flex-wrap:wrap;gap:.25rem .9rem;padding-top:.5rem;font-size:.72rem;color:#64748b}',
+                '.jlegend i{display:inline-block;width:.7rem;height:.7rem;border-radius:3px;margin-right:.3rem;vertical-align:-1px}',
+                '.sync-pill{display:inline-flex;align-items:center;gap:.4rem;font-size:.72rem;font-weight:700;min-width:0;max-width:100%}',
+                '.tgroup{border:1px solid #e2e8f0;border-radius:.6rem;margin-bottom:.5rem;background:#fff}',
+                '.tgroup>summary{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem .75rem;font-weight:700;color:#334155;cursor:pointer}',
+                '.tgroup .tall{font-size:.75rem;font-weight:600;color:#64748b;display:flex;align-items:center;gap:.3rem;cursor:pointer}',
+                '.tgroup .tbody{padding:.1rem .75rem .6rem;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.25rem .75rem}',
+                '.titem{display:flex;align-items:center;gap:.4rem;font-size:.9rem;color:#334155;cursor:pointer;padding:.2rem 0}',
+                '.titem em{margin-left:auto;font-style:normal;font-size:.7rem;color:#94a3b8}',
+                '@media (min-width:768px){#tab-content-jadwal{padding-right:3rem}}',
+                '.settings-offline main>.flex-grow{pointer-events:none;opacity:.5;filter:grayscale(.4)}',
+                '.settings-offline-banner{flex:none;background:#fef3c7;color:#92400e;border-bottom:1px solid #fcd34d;padding:.55rem 1rem;font-size:.8rem;font-weight:700;text-align:center}',
+                '@media (max-width:420px){.jbtn{padding:.4rem .6rem}.jam-input{width:4.6rem}}'
+            ].join('\n');
+            document.head.appendChild(st);
+
+            // Modul lama (Master Jam) dibuang bila masih ada di HTML
+            ['editJamModal', 'deleteJamModal', 'tab-content-jam'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+            document.querySelectorAll('.settings-nav-btn[data-tab="jam"]').forEach(b => b.remove());
+            delete MODALS.editJam; delete MODALS.deleteJam;
+
+            const wrap = document.createElement('div');
+            wrap.innerHTML =
+                '<div id="confirmModal" class="modal-backdrop" style="z-index:60"><div class="card w-full max-w-sm p-6 text-center">' +
+                    '<h3 id="confirmTitle" class="text-xl font-bold mb-3 text-slate-800">Konfirmasi</h3>' +
+                    '<div id="confirmBody" class="mb-5 text-sm text-slate-600"></div>' +
+                    '<div class="flex gap-3"><button type="button" id="confirmCancelBtn" class="btn w-full">Batal</button>' +
+                    '<button type="button" id="confirmOkBtn" class="btn w-full border-0 text-white bg-red-600 hover:bg-red-700">Ya</button></div>' +
+                '</div></div>' +
+                '<div id="salinModal" class="modal-backdrop"><div class="card w-full max-w-md p-6 overflow-y-auto max-h-[90vh]">' +
+                    '<h3 class="text-xl font-bold mb-1 text-slate-800">Salin jadwal dari\u2026</h3>' +
+                    '<p class="text-sm text-slate-500 mb-4">Tujuan: <b id="salinTarget" class="text-slate-700"></b></p>' +
+                    '<div class="space-y-3"><select id="salinTemplate" class="jsel"></select><select id="salinDay" class="jsel"></select>' +
+                    '<p id="salinInfo" class="text-sm font-semibold text-slate-600"></p>' +
+                    '<div class="space-y-2 text-sm text-slate-700">' +
+                        '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="salinMode" value="replace" checked> Gantikan seluruh jadwal tujuan</label>' +
+                        '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="salinMode" value="merge"> Gabungkan (jam yang sama ditimpa)</label>' +
+                    '</div></div>' +
+                    '<div class="flex gap-3 mt-6"><button type="button" id="salinCancelBtn" class="btn w-full">Batal</button>' +
+                    '<button type="button" id="salinOkBtn" class="btn bg-orange-600 text-white w-full border-0 hover:bg-orange-700">Salin</button></div>' +
+                '</div></div>' +
+                '<div id="terapkanModal" class="modal-backdrop"><div class="card w-full max-w-lg p-6 flex flex-col max-h-[90vh]">' +
+                    '<h3 class="text-xl font-bold mb-1 text-slate-800">Terapkan ke jadwal lain</h3>' +
+                    '<p class="text-sm text-slate-500 mb-3">Sumber: <b id="terapkanSource" class="text-slate-700"></b></p>' +
+                    '<div id="terapkanList" class="flex-1 overflow-y-auto min-h-0 pr-1"></div>' +
+                    '<p id="terapkanInfo" class="text-sm font-semibold text-slate-600 mt-3"></p>' +
+                    '<div class="space-y-2 text-sm text-slate-700 mt-2">' +
+                        '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="terapkanMode" value="replace" checked> Gantikan isi jadwal tujuan</label>' +
+                        '<label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="terapkanMode" value="merge"> Gabungkan (jam yang sama ditimpa)</label>' +
+                    '</div>' +
+                    '<div class="flex gap-3 mt-4"><button type="button" id="terapkanCancelBtn" class="btn w-full">Batal</button>' +
+                    '<button type="button" id="terapkanOkBtn" class="btn bg-orange-600 text-white w-full border-0 hover:bg-orange-700">Terapkan</button></div>' +
+                '</div></div>';
+            while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+            MODALS.confirm = 'confirmModal'; MODALS.salin = 'salinModal'; MODALS.terapkan = 'terapkanModal';
+
+            document.getElementById('confirmOkBtn').onclick = () => _closeConfirm(true);
+            document.getElementById('confirmCancelBtn').onclick = () => _closeConfirm(false);
+            document.getElementById('salinOkBtn').onclick = doSalin;
+            document.getElementById('salinCancelBtn').onclick = () => hideModal('salin');
+            document.getElementById('terapkanOkBtn').onclick = doTerapkan;
+            document.getElementById('terapkanCancelBtn').onclick = () => hideModal('terapkan');
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape' && document.getElementById('confirmModal').classList.contains('visible')) _closeConfirm(false);
+            });
+            window.addEventListener('resize', fixJadwalStickyOffset);
+            ensureSyncBadge();
+        }
+        injectJadwalUiOnce();
+
 
         // ===================== PWA =====================
         let deferredInstall = null, appReady = false, bannerOpen = false;
