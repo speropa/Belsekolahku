@@ -153,6 +153,21 @@
                     PANEL REMOTE
                 </div>
                 <div class="p-3 bg-slate-50/50 flex-1 lg:min-h-0 lg:overflow-y-auto custom-scroll">
+                    <div id="volumePanel" class="mb-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+                        <div class="flex items-center justify-between gap-2 mb-2">
+                            <div class="flex items-center gap-2 font-bold text-sm text-slate-700 min-w-0">
+                                <span>🔊 Volume Komputer Sekolah</span>
+                                <span id="volumeBadge" class="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-200 text-slate-600 whitespace-nowrap">—</span>
+                            </div>
+                            <span id="volumeValue" class="font-mono font-black text-xl text-slate-800">--</span>
+                        </div>
+                        <input id="volumeSlider" type="range" min="0" max="100" step="1" value="0" class="w-full accent-orange-600" disabled aria-label="Volume komputer sekolah">
+                        <div class="flex gap-2 mt-2">
+                            <button id="btnVolMax" type="button" class="btn flex-1 py-2 text-sm" disabled>Set 100%</button>
+                            <button id="btnVolMute" type="button" class="btn flex-1 py-2 text-sm" disabled>Mute</button>
+                        </div>
+                        <p id="volumeHint" class="text-xs text-slate-500 mt-2"></p>
+                    </div>
                     <div id="serverWarn" class="hidden mb-3 rounded-lg border px-3 py-2 text-sm font-semibold" role="status"></div>
                     <div id="manualSoundGrid" class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 lg:content-start gap-2 pb-2"></div>
                 </div>
@@ -334,17 +349,6 @@
                     <div>
                         <label class="block text-sm font-semibold text-slate-700 mb-1">Tanggal Berlaku</label>
                         <input type="date" id="mendatangDate" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Aksi Otomatis</label>
-                        <select id="mendatangType" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none">
-                            <option value="khusus">Terapkan Jadwal Khusus (Hanya 1 Hari)</option>
-                            <option value="template">Ubah Template Utama (Permanen dari tgl tsb)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-1">Pilih Jadwal</label>
-                        <select id="mendatangValue" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-3 rounded-md focus:ring-2 focus:ring-orange-300 outline-none" required></select>
                     </div>
                 </div>
                 <div class="flex gap-4 mt-6">
