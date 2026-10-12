@@ -153,11 +153,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 try {
                     const h = await hashPin(entered), cached = getCachedHash();
                     if (h && cached && h === cached) { enterApp(h, true); return; } // cocok dengan cache: langsung masuk
-                    const sp = await fetchServerPin();
+                    // Pertama kali di perangkat ini: harus menunggu server. Beri tahu bila lambat, dan jangan menggantung selamanya.
+                    const slow = setTimeout(() => { statusText.textContent = 'Koneksi lambat, menunggu server...'; }, 3000);
+                    let sp;
+                    try {
+                        sp = await Promise.race([fetchServerPin(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000))]);
+                    } finally { clearTimeout(slow); }
                     if (sp !== null && sp === entered) { setCachedHash(h); enterApp(h, false); }
                     else triggerPinError();
                 } catch (err) {
                     console.error(err);
+                    pinFetch = null; authPromise = null; ensureAuth().then(fetchServerPin).catch(() => {}); // siapkan ulang untuk percobaan berikutnya
                     triggerPinError("Koneksi gagal.");
                 }
             });
@@ -267,7 +273,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
             }
             serverOnline = (state === 'online') ? true : (state === 'offline' ? false : null);
             el.innerHTML = `<span class="w-2 h-2 rounded-full ${dot} flex-shrink-0"></span> <span class="truncate">${esc(label)}</span>`;
-            el.className = `font-mono ${color} font-bold max-w-[55vw] sm:max-w-none sm:w-[350px] flex items-center gap-1.5 mt-0.5 text-[11px] sm:text-xs`;
+            el.className = `font-mono ${color} font-bold min-w-0 max-w-full sm:max-w-[350px] flex items-center gap-1.5 mt-0.5 text-[11px] sm:text-xs`; el.title = label;
             const warn = document.getElementById('serverWarn'), grid = document.getElementById('manualSoundGrid');
             if (warn) {
                 const msgs = { noinet: 'HP tidak terhubung ke internet. Perintah remote tidak bisa dikirim.', offline: 'Server sekolah sedang offline. Perintah remote mungkin baru berjalan setelah server online.' };
@@ -1947,7 +1953,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/fireba
                 // Jadwal 1 - ganti template: sekali saja, permanen sejak tanggal mulai.
                 if (evt.type === 'template' && !evt.applied) { savedTemplate = evt.value; evt.applied = true; changed = true; }
                 // Jadwal 1 khusus & Jadwal 2: berlaku pada setiap hari dalam rentang tanggal.
-                if (!legacyDone && todayStr <= end && evt.lastApplied !== todayStr) {
+                const hasDaily = evt.type === 'khusus' || !!mendatangSec(evt); // ganti-template cukup sekali, tidak perlu simpan ulang tiap hari
+                if (hasDaily && !legacyDone && todayStr <= end && evt.lastApplied !== todayStr) {
                     if (evt.type === 'khusus') {
                         temporaryOverride = { date: todayStr, name: evt.value };
                         manualDayOverride = null;
