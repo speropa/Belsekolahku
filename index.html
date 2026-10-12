@@ -269,12 +269,6 @@
                             Jadwal Mendatang
                         </div>
                     </button>
-                    <button class="settings-nav-btn flex-none" data-tab="jam">
-                         <div class="flex items-center gap-2 md:gap-3">
-                            <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Master Jam
-                        </div>
-                    </button>
                     <button class="settings-nav-btn flex-none" data-tab="bel">
                         <div class="flex items-center gap-2 md:gap-3">
                             <svg class="w-4 h-4 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
@@ -299,7 +293,6 @@
                 <div class="flex-grow overflow-y-auto p-4 sm:p-6 md:p-8 custom-scroll">
                     <div id="tab-content-hari" class="tab-content"></div>
                     <div id="tab-content-mendatang" class="tab-content hidden"></div>
-                    <div id="tab-content-jam" class="tab-content hidden"></div>
                     <div id="tab-content-bel" class="tab-content hidden"></div>
                     <div id="tab-content-jadwal" class="tab-content hidden"></div>
                 </div>
@@ -369,33 +362,6 @@
             <div class="flex gap-4 mt-6">
                 <button type="button" class="btn w-full" data-action="close">Batal</button>
                 <button type="button" id="confirmDeleteMendatangBtn" class="btn bg-red-600 text-white w-full border-0 hover:bg-red-700">Hapus</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="editJamModal" class="modal-backdrop">
-        <div class="card w-full max-w-sm p-6 text-center">
-            <h3 class="text-xl font-bold mb-4 text-slate-800">Edit Jam</h3>
-            <form id="editJamForm">
-                <input type="hidden" id="editJamIndex">
-                <div class="mb-6">
-                    <input type="text" id="editJamInput" class="w-full bg-slate-50 border border-slate-300 text-slate-800 p-4 rounded-md text-center text-3xl font-bold tracking-widest focus:ring-2 focus:ring-orange-300 outline-none" placeholder="00:00" maxlength="5" required autocomplete="off">
-                </div>
-                <div class="flex gap-4">
-                    <button type="button" class="btn w-full" data-action="close">Batal</button>
-                    <button type="submit" class="btn bg-orange-600 hover:bg-orange-700 text-white w-full font-bold border-0">Simpan</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div id="deleteJamModal" class="modal-backdrop">
-        <div class="card w-full max-w-sm p-6 text-center">
-            <h3 class="text-xl font-bold mb-4 text-slate-800">Hapus Jam?</h3>
-            <p id="deleteJamText" class="mb-6 text-slate-600"></p>
-            <div class="flex gap-4 mt-6">
-                <button type="button" class="btn w-full" data-action="close">Batal</button>
-                <button type="button" id="confirmDeleteJamBtn" class="btn bg-red-600 text-white w-full border-0 hover:bg-red-700">Hapus</button>
             </div>
         </div>
     </div>
