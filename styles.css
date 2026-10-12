@@ -1,5 +1,4 @@
-
-        /* Responsive Body: Normal scroll di HP, Locked 100vh di Desktop (lg) */
+/* Responsive Body: Normal scroll di HP, Locked 100vh di Desktop (lg) */
         body { font-family: 'Inter', sans-serif; background-color: #334155; color: #1e293b; margin: 0; padding: 0; }
         
         .card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
@@ -150,3 +149,13 @@ html.modal-open, body.modal-open { overflow: hidden; }
 body.modal-open .mobile-nav, body.modal-open .install-banner { visibility: hidden; }
 .modal-backdrop .overflow-y-auto, .modal-backdrop .custom-scroll { overscroll-behavior: contain; }
 @media (max-width: 767.98px) { #settingsModal > .card { height: 90vh; height: 90svh; } }
+
+/* ===== Perbaikan: bilah status tidak boleh melebarkan halaman (status panjang dipotong ...) ===== */
+html { overflow-x: hidden; }
+body { max-width: 100vw; overflow-x: clip; }
+#server-status-bar { max-width: 100vw; }
+#server-status-bar .sync-pill { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+#server-status-bar .sync-pill > .truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#desktop-status-text > .truncate { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#now-playing-ticker { flex: 0 1 auto; min-width: 0; }
+@media (max-width: 639.98px) { #server-status-bar .sync-pill { max-width: 44vw; } }
